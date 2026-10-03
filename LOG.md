@@ -62,3 +62,4 @@
   load `cudatoolkit/13.0` in jobs (headers for any other JIT), `set -eo pipefail` in all sbatch scripts. Removed the 696K
   ~/.cache/flashinfer it created. Resubmitted pilot (3390145) + a 20-min engine check (3390146, any GPU incl. MIG).
 - 14:34 Pilot OK (reports/pilot.md). C8 alternatives made template-aware. Pilot outputs archived to results/pilot/. Full run submitted: controller=3390346 (array 0-3) -> conditions=3390347 -> backbone=3390348 (array 0-3) -> analyze=3390349.
+- 16:20 Controller array 3390346 done (4×~25 min, adroit-h11g3 A40s): 600/600 episodes cached. 9,242 write calls (+146 pilot cached), first-try JSON failures 2 (0.02%), resolved by retry, final failures 0; merge calls 2,517, merge JSON failures 2 (fallback: concatenation). Conditions build 3390347 started on adroit-h11n2.
