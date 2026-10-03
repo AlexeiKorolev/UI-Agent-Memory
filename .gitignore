@@ -16,3 +16,5 @@ third_party/GUI-Odyssey/
 third_party/*.html
 third_party/*.txt
 third_party/*.md
+results/specs/
+results/pilot/specs/
