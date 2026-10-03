@@ -10,6 +10,7 @@
 #SBATCH --partition=all,class
 #SBATCH --mail-type=END,FAIL,TIME_LIMIT
 # Usage: sbatch slurm/ocr.sbatch <file-list>   (resumable: cached JSONs are skipped)
+set -eo pipefail
 source "$SLURM_SUBMIT_DIR/env.sh"   # submit from the repo root
 export OMP_THREAD_LIMIT=1
 echo "$(date) $SLURMD_NODENAME"

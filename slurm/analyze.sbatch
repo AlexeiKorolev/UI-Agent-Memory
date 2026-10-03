@@ -9,6 +9,7 @@
 #SBATCH --mem=32G
 #SBATCH --time=02:00:00
 #SBATCH --partition=all,class
+set -eo pipefail
 source "$SLURM_SUBMIT_DIR/env.sh"   # submit from the repo root
 cd $PROJ; echo "$(date) $SLURMD_NODENAME"
 python -m src.analyze --n ${1:-300} ${2:+--tag $2}

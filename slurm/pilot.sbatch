@@ -11,6 +11,7 @@
 #SBATCH --gres=gpu:1
 #SBATCH --constraint="gpu80|a40"
 #SBATCH --mail-type=END,FAIL,TIME_LIMIT
+set -eo pipefail
 source "$SLURM_SUBMIT_DIR/env.sh"   # submit from the repo root
 export HF_HUB_OFFLINE=1 TRANSFORMERS_OFFLINE=1 OMP_THREAD_LIMIT=1
 cd $PROJ

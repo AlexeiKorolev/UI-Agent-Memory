@@ -13,6 +13,7 @@
 #SBATCH --constraint="gpu80|a40"
 #SBATCH --array=0-3
 # Usage: sbatch slurm/controller.sbatch <N>    (resumable; finished episodes are skipped)
+set -eo pipefail
 source "$SLURM_SUBMIT_DIR/env.sh"   # submit from the repo root
 export HF_HUB_OFFLINE=1 TRANSFORMERS_OFFLINE=1 OMP_THREAD_LIMIT=1
 cd $PROJ; echo "$(date) $SLURMD_NODENAME"; nvidia-smi --query-gpu=name,memory.total --format=csv,noheader

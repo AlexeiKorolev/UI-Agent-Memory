@@ -48,3 +48,16 @@
   Tightened C8: alternative must not appear on any screen 0..t of the episode (not just current).
 - 20:50 GPU queue is congested: pilot 3389614 est. start Oct 4 (≈20 jobs ahead at similar priority; 4×A100 busy, both A40s used by user's own NASA jobs).
   Decided NOT to quantize to fit 20GB MIG slices (would alter the backbone). Waiting.
+
+## 2026-10-03 (Sat)
+- 01:00 Made paths portable (MG_PROJ / repo root), removed personal info from tracked files, wrote CONTEXT.md handoff, pushed
+  a single fresh commit to github.com/AlexeiKorolev/UI-Agent-Memory (local full history kept on branch `adroit-history`).
+- 01:30 /home was at its 10 GiB hard limit (not caused by this project). With user approval cleaned re-downloadable caches
+  (4 old VS Code CLI servers, 6 legacy VS Code server builds, cached VSIXs, ~/.cache/pip): /home 10 → 3.4 GiB.
+- 11:22 Pilot 3389614 started (after ~14 h queued) on adroit-h11g1 (A100-80GB). Controller model loaded fine
+  (16.8 GiB weights, 51.5 GiB KV cache) but **engine warm-up crashed**: vLLM's default FlashInfer top-k/top-p sampler
+  JIT-compiles a CUDA kernel that needs `curand.h` (not available without a CUDA toolkit module), and it wrote its JIT cache
+  to ~/.cache/flashinfer (bypassing our cache redirects). Job reported COMPLETED only because the script's final echo ran.
+  Fix: `VLLM_USE_FLASHINFER_SAMPLER=0` (greedy = argmax, outputs unaffected), `FLASHINFER_WORKSPACE_BASE=$PROJ`,
+  load `cudatoolkit/13.0` in jobs (headers for any other JIT), `set -eo pipefail` in all sbatch scripts. Removed the 696K
+  ~/.cache/flashinfer it created. Resubmitted pilot (3390145) + a 20-min engine check (3390146, any GPU incl. MIG).
