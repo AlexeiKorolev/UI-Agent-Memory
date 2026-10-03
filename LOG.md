@@ -61,3 +61,4 @@
   Fix: `VLLM_USE_FLASHINFER_SAMPLER=0` (greedy = argmax, outputs unaffected), `FLASHINFER_WORKSPACE_BASE=$PROJ`,
   load `cudatoolkit/13.0` in jobs (headers for any other JIT), `set -eo pipefail` in all sbatch scripts. Removed the 696K
   ~/.cache/flashinfer it created. Resubmitted pilot (3390145) + a 20-min engine check (3390146, any GPU incl. MIG).
+- 14:34 Pilot OK (reports/pilot.md). C8 alternatives made template-aware. Pilot outputs archived to results/pilot/. Full run submitted: controller=3390346 (array 0-3) -> conditions=3390347 -> backbone=3390348 (array 0-3) -> analyze=3390349.

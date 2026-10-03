@@ -26,7 +26,7 @@ def test_choose_alternative_same_type_and_forbidden():
     rng = random.Random(0)
     pool = ["Blue Lagoon Cafe", "Grilled Fish Tacos", "Mango Sticky Rice", "https://a.com/x"]
     alt, how = choose_alternative("Grilled Chicken Salad", pool, rng, forbid_texts=("Mango Sticky Rice is great",))
-    assert how == "pool_swap" and alt in ("Blue Lagoon Cafe",)  # 3 words, not similar, not forbidden
+    assert how == "pool_any" and alt in ("Blue Lagoon Cafe",)  # 3 words, not similar, not forbidden
     alt, how = choose_alternative("9298916954", pool, rng)
     assert how == "digit_perturb" and len(alt) == 10 and alt.isdigit()
 
@@ -49,3 +49,13 @@ def test_edit_crop_replaces_rendered_text():
     assert best_window_sim("4821 Maple Street", words)[0] < 0.8
     assert best_window_sim("7390 Cedar Road", words)[0] >= 0.8
     assert best_window_sim("Total", words)[0] >= 0.8  # untouched context survives
+
+
+def test_choose_alternative_prefers_same_template():
+    rng = random.Random(0)
+    pool = [("Blue Lagoon Cafe", "Find a restaurant {}", "Web_Shopping"),
+            ("Acme Robotics Inc", "Find a job at {} and note the company", "Multi_Apps"),
+            ("Mango Sticky Rice", "Cook {}", "Multi_Apps")]
+    alt, how = choose_alternative("Entertainment Retail Enterprises", pool, rng,
+                                  meta_task="Find a job at {} and note the company", category="Multi_Apps")
+    assert how == "pool_same_template" and alt == "Acme Robotics Inc"

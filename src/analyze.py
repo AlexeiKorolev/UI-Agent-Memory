@@ -43,7 +43,7 @@ def official_correct(pred, gt, sam2_bbox):
 
 
 def tsim(a, b):
-    if a is None or b is None:
+    if not isinstance(a, str) or not isinstance(b, str):  # None / NaN (no TYPE prediction) -> no match
         return 0.0
     return Levenshtein.normalized_similarity(norm(a), norm(b))
 
@@ -81,11 +81,11 @@ def load_results(n):
     for e in df.episode_id.unique():
         ep = load_episode(e)
         for s in ep["steps"]:
-            gt.append(dict(episode_id=e, step=s["step"], gt=decode_action(s["action"], s["info"]),
+            gt.append(dict(episode_id=e, step=s["step"], gt_cmd=decode_action(s["action"], s["info"]),
                            gt_action=s["action"], sam2_bbox=s.get("sam2_bbox") or None,
                            category=ep["task_info"]["category"]))
     df = df.merge(pd.DataFrame(gt), on=["episode_id", "step"], how="left")
-    cr = [official_correct(p, g, b) for p, g, b in zip(df.action, df.gt, df.sam2_bbox)]
+    cr = [official_correct(p, g, b) for p, g, b in zip(df.action, df.gt_cmd, df.sam2_bbox)]
     df["correct"] = [c for c, _ in cr]
     df["match_info"] = [i for _, i in cr]
     df["pred_type"] = df.action.map(lambda a: a.split(":")[0].strip())

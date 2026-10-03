@@ -3,8 +3,9 @@
 - choose_alternative(): a same-type replacement for the needed string
     * digit-bearing strings: every digit replaced by a different digit (same digit count/format,
       leading digit kept non-zero), letters/punctuation unchanged
-    * other strings: another MD needed string from a *different* episode with the same word count
-      (closest length) and same type class (url/email/alpha), dissimilar to the original
+    * other strings: another MD needed string from a *different* episode, preferring the same task template
+      (meta_task slot), then same category; same type class (url/email/alpha), same word count, closest length,
+      dissimilar to the original
 - edit_text(): replace fuzzy occurrences (sim>=0.8 windows) of the needed string in a summary
 - edit_crop(): cover the string's OCR box with the local background colour and render the alternative
   in a similar font size (Droid Sans, the Android UI font family)
@@ -44,10 +45,13 @@ def perturb_digits(s, rng):
     return "".join(out)
 
 
-def choose_alternative(needed, pool, rng, forbid_texts=()):
-    """pool: list of (episode_id, needed_string) from other episodes. forbid_texts: strings in which the
-    alternative must not already occur (instruction, current-screen OCR text) so following is unambiguous."""
+def choose_alternative(needed, pool, rng, forbid_texts=(), meta_task=None, category=None):
+    """pool: list of strings, or of (string, meta_task, category) tuples from *other* episodes.
+    Candidates are ranked by semantic slot match: same task template (meta_task) > same category > any, then
+    same word count, then closest length. forbid_texts: strings in which the alternative must not already occur
+    (instruction, every screen seen so far) so that following is unambiguous."""
     cls = type_class(needed)
+    pool = [p if isinstance(p, tuple) else (p, None, None) for p in pool]
 
     def ok(alt):
         if norm(alt) == norm(needed):
@@ -65,15 +69,16 @@ def choose_alternative(needed, pool, rng, forbid_texts=()):
             if alt != needed and ok(alt):
                 return alt, "digit_perturb"
     nw = len(needed.split())
-    cands = [p for p in pool if type_class(p) == cls and len(p.split()) == nw and norm(p) != norm(needed)]
-    if not cands:
-        cands = [p for p in pool if type_class(p) == cls and norm(p) != norm(needed)]
-    cands.sort(key=lambda p: (abs(len(p) - len(needed)), p))
-    cands = cands[:15]
-    rng.shuffle(cands)
-    for alt in cands:
-        if ok(alt):
-            return alt, "pool_swap"
+    tiers = [("pool_same_template", lambda m, c: meta_task is not None and m == meta_task),
+             ("pool_same_category", lambda m, c: category is not None and c == category),
+             ("pool_any", lambda m, c: True)]
+    for how, keep in tiers:
+        cands = sorted({p for p, m, c in pool if keep(m, c) and type_class(p) == cls and norm(p) != norm(needed)},
+                       key=lambda p: (len(p.split()) != nw, abs(len(p) - len(needed)), p))[:15]
+        rng.shuffle(cands)
+        for alt in cands:
+            if ok(alt):
+                return alt, how
     # last resort: letter-level scramble preserving case/shape
     letters = "abcdefghijklmnopqrstuvwxyz"
     for _ in range(50):

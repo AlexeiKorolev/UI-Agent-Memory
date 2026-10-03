@@ -163,7 +163,9 @@ def build(n, md_path, only=None):
     SPECS.mkdir(parents=True, exist_ok=True)
     md = pd.read_parquet(md_path)
     md_keys = {(r.episode_id, int(r.step)): r for r in md.itertuples()}
-    pool = sorted(set(md.needed_string))
+    # counterfactual pool: (string, meta_task, category, episode) so alternatives fill the same semantic slot
+    pool = sorted({(r.needed_string, load_episode(r.episode_id)["task_info"]["meta_task"],
+                    load_episode(r.episode_id)["task_info"]["category"], r.episode_id) for r in md.itertuples()})
     # index memory states for C7 donors: category -> n_entries -> list of (eid, t, n_crops)
     states = defaultdict(lambda: defaultdict(list))
     all_sample = sample(n)
@@ -243,8 +245,9 @@ def build(n, md_path, only=None):
                 # the alternative must not occur on ANY screen seen so far (0..t) nor in the task text, so
                 # outputting it can only come from the edited memory
                 seen_ocr = [" ".join(w["text"] for w in ocr_cached(ep["steps"][k]["screenshot"])["words"]) for k in range(t + 1)]
-                alt, how = choose_alternative(needed, [p for p in pool if p != needed], seeded("C8", eid, t),
-                                              forbid_texts=(problem + " " + ep["task_info"]["task"], *seen_ocr))
+                alt, how = choose_alternative(needed, [(p, m, c) for p, m, c, pe in pool if pe != eid and p != needed],
+                                              seeded("C8", eid, t), forbid_texts=(problem + " " + ep["task_info"]["task"], *seen_ocr),
+                                              meta_task=ep["task_info"]["meta_task"], category=cat)
                 n_txt, n_crop = 0, 0
                 if alt is not None:
                     new_txt = []
