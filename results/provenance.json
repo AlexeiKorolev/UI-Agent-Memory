@@ -1,0 +1,50 @@
+{
+  "models": {
+    "controller": {
+      "repo": "Qwen/Qwen3-VL-8B-Instruct",
+      "revision": "0c351dd01ed87e9c1b53cbc748cba10e6187ff3b"
+    },
+    "backbone": {
+      "repo": "inclusionAI/UI-Venus-1.5-8B",
+      "revision": "a06ff6c6f15a9eca210769dacc1603f73b4a500c"
+    }
+  },
+  "dataset": {
+    "repo": "hflqf88888/GUIOdyssey",
+    "revision": "61632d0f3f4d51d7e9561ce4f84347dd06b2019d",
+    "split": "random_split / test",
+    "superseded_repo": {
+      "repo": "OpenGVLab/GUI-Odyssey",
+      "revision": "71e0e7e2d169c642e7a99c264d82ffecadf67889",
+      "note": "v1; README points to the v2 repo above, which we use"
+    }
+  },
+  "reference_code": {
+    "OpenGVLab/GUI-Odyssey": "5cdf76d9bd72034f3cb36bcf2cad77b8dcc81251",
+    "inclusionAI/UI-Venus": "1ffbaf653fb3d5d08e9ea14b013865496d68408e",
+    "ui_venus_prompt_source": "UI-Venus-1.5 Technical Report, arXiv:2602.09082v2, Appendix A.3 'Mobile Prompt' (verbatim)"
+  },
+  "this_repo_commit": "41fd3bb14de8b6c68e5083c1d742aa5528525248",
+  "software": {
+    "python": "3.11.17",
+    "torch": "2.13.0+cu130",
+    "torch_cuda": "13.0",
+    "transformers": "5.18.0",
+    "vllm": "0.30.0",
+    "pillow": "12.3.0",
+    "pandas": "3.0.6",
+    "rapidfuzz": "3.14.6",
+    "statsmodels": "0.15.0",
+    "tesseract": "tesseract 4.1.1"
+  },
+  "decoding": {
+    "temperature": 0.0,
+    "seed": 0,
+    "backbone_max_tokens": 768,
+    "controller_max_tokens": 256
+  },
+  "sampling": {
+    "seed": 0,
+    "method": "stratified by task category (src/data.py::stratified_order)"
+  }
+}

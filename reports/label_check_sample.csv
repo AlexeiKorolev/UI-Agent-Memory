@@ -1,0 +1,31 @@
+episode_id,step,needed_string,source_step,first_source_step,source_kinds,in_instruction,md_strict,category,src_sim,cur_ocr_sim
+1489856008258325,9,GoPro HERO10,5.0,1.0,"screen,typed",True,False,Web_Shopping,1.0,0.2666666666666667
+4636417508451352,6,"150g salted butter, softened 80g light brown muscovado sugar, 80g granulated sugar, 2 tsp vanilla extract, 1 large egg, 225g plain flour, 1/2 tsp bicarbonate of soda, 1/4 tsp salt, 200g plain chocolate chips or chunks",1.0,1.0,screen,False,True,Multi_Apps,0.9665071770334929,0.0
+2803993314796469,17,french language class,4.0,1.0,"screen,typed",True,False,Multi_Apps,1.0,0.4285714285714286
+3678335785303445,11,new delhi,5.0,3.0,"screen,typed",True,False,Web_Shopping,1.0,0.33333333333333337
+9249888902239790,8,VR Development Full Course: Oculus Quest,3.0,1.0,screen,False,True,Media_Entertainment,1.0,0.3207547169811321
+0193478855322542,12,Holy Stone HS720R,6.0,5.0,screen,False,True,Multi_Apps,1.0,0.2727272727272727
+4310579014484848,8,do yoga with this,6.0,6.0,screen,False,True,Media_Entertainment,0.85,0.3529411764705882
+4174759152335380,24,the shindellas,22.0,9.0,screen,False,True,Information_Management,1.0,0.5
+3335264302016436,17,DealMoon,16.0,0.0,"screen,typed",True,False,General_Tool,1.0,0.25
+2231862333326482,10,Great R&B,8.0,6.0,screen,False,True,Social_Sharing,1.0,0.33333333333333337
+3980360413822387,8,Waze,4.0,4.0,screen,False,True,Media_Entertainment,1.0,0.5
+4264806779091821,8,Google's AI Course for Beginners(in 10 minutes)!,3.0,1.0,screen,False,True,Media_Entertainment,0.9782608695652174,0.23913043478260865
+7339822285663511,13,THE OUTNET,7.0,0.0,"screen,typed",True,False,General_Tool,1.0,0.19999999999999996
+3219448417872195,8,Quinoa Bowl,5.0,5.0,screen,False,True,Multi_Apps,1.0,0.18181818181818177
+9464647543951273,13,Citizen Science Fair will come on MAY 25,11.0,11.0,screen,False,True,Social_Sharing,1.0,0.30000000000000004
+1796008213248338,11,Escondite,8.0,7.0,screen,False,True,General_Tool,1.0,0.36363636363636365
+7233930811894516,15,Goddess Bowls,12.0,7.0,screen,False,True,Multi_Apps,1.0,0.23076923076923073
+4389994022937346,12,Yellowstone National Park,8.0,2.0,"screen,typed",True,False,Web_Shopping,1.0,0.31999999999999995
+6125190889041336,2,book about historical fiction,1.0,1.0,screen,False,True,Multi_Apps,1.0,0.7575757575757576
+3538165452055539,8,table tennis champion game,4.0,4.0,screen,False,True,Information_Management,0.8076923076923077,0.42307692307692313
+0180872754718232,13,Lazada,7.0,2.0,"screen,typed",True,False,General_Tool,1.0,0.33333333333333337
+7116642307811069,2,Tokopedia,0.0,0.0,screen,True,False,General_Tool,1.0,0.25
+8006965329628211,9,Grilled Chicken Salad,6.0,5.0,screen,False,True,Multi_Apps,1.0,0.2857142857142857
+1061013841071298,12,Los Angeles,7.0,7.0,screen,False,True,Multi_Apps,1.0,0.36363636363636365
+0589394936591331,8,sonet,5.0,4.0,screen,False,True,Information_Management,1.0,0.2857142857142857
+0800508265572461,5,640 San Julian St,2.0,2.0,screen,False,True,General_Tool,1.0,0.47058823529411764
+3434659461858971,26,Bristlecone,22.0,2.0,"screen,typed",True,False,Multi_Apps,1.0,0.3529411764705882
+3810495333995541,7,Waze,4.0,4.0,screen,False,True,Media_Entertainment,1.0,0.5
+8498065817312141,17,porsche,6.0,5.0,screen,True,False,Information_Management,1.0,0.33333333333333337
+3042657515534914,17,spanish language class,5.0,2.0,"screen,typed",True,False,Multi_Apps,1.0,0.4545454545454546
