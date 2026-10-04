@@ -79,11 +79,26 @@ def main(prefix, k):
     }
     per = {"C8 follows the counterfactual": 2, "C8 ignores the edit (types original)": 2, "C1 wrong although string is in memory": 2,
            "C7 (other episode) still right": 2, "C0 right without memory": 1, "C5 (blank crops) breaks crop-only case": 1}
+    buckets["C8c crop-only edit followed"] = [i for i in md[md.cond == "C8c"].set_index(["episode_id", "step"]).text_sim_alt.loc[lambda x: x >= 0.8].index]
+    per["C8c crop-only edit followed"] = 1
+    import random
+    rng = random.Random(0)
     chosen, used = [], set()
-    for b, items in buckets.items():
-        for i in sorted(items)[:per[b]]:
+    pools = {b: rng.sample(sorted(items), len(items)) for b, items in buckets.items()}
+    for b in buckets:                               # first pass: the planned number per bucket
+        n = 0
+        for i in pools[b]:
+            if n >= per[b]:
+                break
+            if i not in used:
+                chosen.append((b, i)); used.add(i); n += 1
+    for b in buckets:                               # fill remaining slots (some buckets may be empty)
+        for i in pools[b]:
+            if len(chosen) >= k:
+                break
             if i not in used:
                 chosen.append((b, i)); used.add(i)
+    print({b: len(v) for b, v in buckets.items()})
     FIG.mkdir(parents=True, exist_ok=True)
     out = []
     for n, (b, (e, t)) in enumerate(chosen[:k], 1):
