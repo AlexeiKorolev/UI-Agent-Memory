@@ -96,8 +96,9 @@ channel 14.1% ≫ crop channel 1.6%). C2 (raw history) beats C1.
 
 **Possible next steps (none required):** (a) optional activation patching (task spec §7) on ≤ 50 MD steps where C1 is
 right and C8 follows (`reports/failure_cases.csv`/per-step parquet identify them); (b) a closed-loop (predicted-history)
-variant; (c) a larger crop-only subset to test H3 directly; (d) ask the user whether to scrub netid paths from GitHub
-history (commit `e5c5dfb`; needs a force-push).
+variant; (c) a larger crop-only subset to test H3 directly; (d) ask the user whether to scrub the netid from GitHub
+history: paths in pilot specs (commit `e5c5dfb`) and tar owner names in the first `artifacts/ocr_cache_600.tar.gz`
+(commits `ae6ec2b`–`aeeba79`; rebuilt with anonymous owner in the final commit). Needs a force-push.
 
 ### 4.2 How to check
 
