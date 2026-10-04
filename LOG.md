@@ -68,3 +68,4 @@
   since 19:40 (A40); shard 2 running since 20:06 (A100 — mixed hardware, note in limitations); shard 3 pending.
   182/600 episodes done at 20:13. GPU-hours so far ≈ 5.3. Added src/failure_cases.py (tested on pilot data) and
   scripts/gpu_hours.py. Rewrote CONTEXT.md §4 as a "PICK UP HERE" handoff; added CLAUDE.md pointing to it.
+- 22:46 Backbone array 3390348 all 4 shards COMPLETED (A40: 3h09, 3h06; A100: 1h39, 1h34); 600/600 episodes. Analysis job 3390349 cancelled: per-resample pd.concat bootstrap would take many hours at n=600 (~270 CIs). Replaced with an equivalent vectorised episode bootstrap (per-episode sums/counts, numpy resampling; verified against the old implementation on pilot data, CIs agree within MC noise). Resubmitted analysis as 3390782.

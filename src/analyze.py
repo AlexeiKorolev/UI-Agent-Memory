@@ -94,15 +94,26 @@ def load_results(n):
 
 
 def boot_ci(df, fn, n_boot=N_BOOT, seed=0):
-    """Percentile CI from resampling episodes with replacement."""
-    eps = df.episode_id.unique()
-    groups = {e: g for e, g in df.groupby("episode_id")}
+    """95% percentile CI from resampling *episodes* with replacement (1,000x).
+
+    Every metric we bootstrap is a pooled mean over steps, so fn(d) is evaluated per row via _row_values and the
+    resampled statistic is sum(num[idx]) / sum(den[idx]) over resampled episodes, identical to concatenating the
+    resampled episodes and applying fn, but vectorised."""
+    v = _row_values(df, fn)
+    g = pd.DataFrame({"e": df.episode_id.values, "v": v}).groupby("e").v.agg(["sum", "count"])
+    num, den = g["sum"].to_numpy(float), g["count"].to_numpy(float)
     rng = np.random.default_rng(seed)
-    vals = []
-    for _ in range(n_boot):
-        pick = rng.choice(eps, size=len(eps), replace=True)
-        vals.append(fn(pd.concat([groups[e] for e in pick])))
-    return float(np.percentile(vals, 2.5)), float(np.percentile(vals, 97.5))
+    idx = rng.integers(0, len(num), size=(n_boot, len(num)))
+    stats = 100 * num[idx].sum(1) / den[idx].sum(1)
+    return float(np.percentile(stats, 2.5)), float(np.percentile(stats, 97.5))
+
+
+def _row_values(d, fn):
+    """Per-row 0/1 indicator whose mean (x100) equals fn(d) for our pooled-mean metrics."""
+    return {ams_macro: lambda x: x.correct.astype(float),
+            text_acc: lambda x: (x.text_sim_needed >= TEXT_T).astype(float),
+            follow_cf: lambda x: (x.text_sim_alt >= TEXT_T).astype(float),
+            changed: lambda x: x.changed_vs_C1.astype(float)}[fn](d).to_numpy()
 
 
 def ams_macro(d):
@@ -115,6 +126,14 @@ def ams_micro(d):
 
 def text_acc(d):
     return 100 * (d.text_sim_needed >= TEXT_T).mean()
+
+
+def follow_cf(d):
+    return 100 * (d.text_sim_alt >= TEXT_T).mean()
+
+
+def changed(d):
+    return 100 * d.changed_vs_C1.astype(float).mean()
 
 
 def summarize(df, md, pres, cf, out_prefix):
@@ -166,12 +185,12 @@ def summarize(df, md, pres, cf, out_prefix):
             if sname != "all":
                 r["text_acc"] = text_acc(d); r["text_acc_lo"], r["text_acc_hi"] = boot_ci(d, text_acc)
                 r["follow_cf"] = 100 * (d.text_sim_alt >= TEXT_T).mean()
-                r["follow_cf_lo"], r["follow_cf_hi"] = boot_ci(d, lambda x: 100 * (x.text_sim_alt >= TEXT_T).mean())
+                r["follow_cf_lo"], r["follow_cf_hi"] = boot_ci(d, follow_cf)
                 r["pred_TYPE_rate"] = 100 * (d.pred_type == "TYPE").mean()
             ch = d.changed_vs_C1.dropna()
             if len(ch):
                 r["change_vs_C1"] = 100 * ch.astype(float).mean()
-                r["change_lo"], r["change_hi"] = boot_ci(d[d.changed_vs_C1.notna()], lambda x: 100 * x.changed_vs_C1.astype(float).mean())
+                r["change_lo"], r["change_hi"] = boot_ci(d[d.changed_vs_C1.notna()], changed)
             # paired McNemar vs C1 (text accuracy on MD subsets, AMS correctness on 'all')
             if cond != "C1":
                 d1 = sf(df[df.cond == "C1"])
@@ -203,8 +222,8 @@ def follow_table(df):
             orig = (d.text_sim_needed >= TEXT_T) & ~cfm
             rows.append(dict(condition=cond, subset=sname, n=len(d),
                              follow_cf=100 * cfm.mean(), original=100 * orig.mean(), neither=100 * (~cfm & ~orig).mean(),
-                             follow_cf_lo=boot_ci(d, lambda x: 100 * (x.text_sim_alt >= TEXT_T).mean())[0],
-                             follow_cf_hi=boot_ci(d, lambda x: 100 * (x.text_sim_alt >= TEXT_T).mean())[1]))
+                             follow_cf_lo=boot_ci(d, follow_cf)[0],
+                             follow_cf_hi=boot_ci(d, follow_cf)[1]))
     return pd.DataFrame(rows)
 
 
