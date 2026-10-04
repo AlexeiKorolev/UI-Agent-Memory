@@ -64,3 +64,7 @@
 - 14:34 Pilot OK (reports/pilot.md). C8 alternatives made template-aware. Pilot outputs archived to results/pilot/. Full run submitted: controller=3390346 (array 0-3) -> conditions=3390347 -> backbone=3390348 (array 0-3) -> analyze=3390349.
 - 16:20 Controller array 3390346 done (4×~25 min, adroit-h11g3 A40s): 600/600 episodes cached. 9,242 write calls (+146 pilot cached), first-try JSON failures 2 (0.02%), resolved by retry, final failures 0; merge calls 2,517, merge JSON failures 2 (fallback: concatenation). Conditions build 3390347 started on adroit-h11n2.
 - 16:25 Conditions 3390347 done (4.4 min): specs for 600 episodes. Presence on 275 MD steps: text 89.5%, crop 65.5%, any 93.1%. C8 alternatives: same-template 203, same-category 60, digit 11, any 1; text edited on 89.8%, crop on 65.5% of MD steps. Backbone array 3390348 queued.
+- 16:30–20:15 Backbone array 3390348: shard 0 COMPLETED 16:30→19:40 (3 h 09 m, A40, ~1.5 prompts/s); shard 1 running
+  since 19:40 (A40); shard 2 running since 20:06 (A100 — mixed hardware, note in limitations); shard 3 pending.
+  182/600 episodes done at 20:13. GPU-hours so far ≈ 5.3. Added src/failure_cases.py (tested on pilot data) and
+  scripts/gpu_hours.py. Rewrote CONTEXT.md §4 as a "PICK UP HERE" handoff; added CLAUDE.md pointing to it.

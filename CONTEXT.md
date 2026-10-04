@@ -4,7 +4,7 @@ Everything needed to continue this project on another machine or with a new assi
 specification is in [`docs/task_spec.md`](docs/task_spec.md) (verbatim). The dated running log is
 [`LOG.md`](LOG.md). This file summarises **what was decided, why, what is verified, and what remains**.
 
-_Last updated: 2026-10-03, ~01:15 EDT. Written on Adroit (Princeton RC) before moving to Neuronic._
+_Last updated: 2026-10-03 20:15 EDT (Adroit). **A fresh session should start at §4 "PICK UP HERE".**_
 
 ---
 
@@ -79,23 +79,85 @@ MementoGUI released no code/weights, so we re-implement a **MementoGUI-style wor
 | Label precision | Hand-checked 30 random MD labels from images: **27/30 = 0.90** (Wilson 95% CI 0.74–0.97). Errors: OCR missed white-on-colour text on current screen; stale browser history matched; loose fuzzy paraphrase. | `reports/label_check.md`, `reports/figs/md_label_check_*.png` |
 | OCR | System tesseract 4.1.1, eng, `--psm 11`, + inverted pass if mean luminance < 110; conf ≥ 30. Reading order via line clustering (a bucket-sort bug was found by unit test and fixed before the OCR job). Cache shipped as `artifacts/ocr_cache_600.tar.gz`. | `src/ocr.py` |
 
-## 4. Status (2026-10-03 01:15)
+## 4. Status — PICK UP HERE (updated 2026-10-03 20:15 EDT)
 
-**Done:** env, model download, annotations, 9,388 screenshots (600 eps), OCR, MD labels (n=300 and n=600), label
-hand-check, all pipeline code, 10/10 unit tests, CPU smoke test (all conditions build; max prompt ≈ 5.1k tokens on a test
-episode), provenance, sbatch scripts.
+### 4.1 Where things stand
 
-**Not done (nothing has run on a GPU yet):**
-1. **Pilot** (10 episodes): `slurm/pilot.sbatch` = controller → conditions → backbone. On Adroit it was job 3389614,
-   pending ≥ 5 h behind ~17 jobs (4×A100 busy; both A40s used by the user's other jobs). Then write `reports/pilot.md`
-   (setup checks, timing, sample prompts/outputs, surprises). **Check in pilot:** controller JSON failure rate; backbone
-   parse failures / INVALID rate; C0 scroll accuracy (direction convention); C0 AMS roughly plausible vs 54.58;
-   that memory crops are sensible; throughput (prompts/s) to plan the full run.
-2. **Full run (n=600):** controller array (4 shards) → `build_conditions` (CPU) → backbone array (4 shards) → analyze →
-   figures. ~9.4k steps × 8 conditions + 3×275 C8 prompts (~65–75k unique prompts after dedup).
-3. **Reports:** `reports/final.md` (setup, deviations, label precision, presence rate, main table, H1–H4 verdicts,
-   10 annotated failure cases with images, limitations, GPU-hours) and README polish.
-4. Optional §7 activation patching (HF model, 50 MD steps) — only after a clean main result.
+| Stage | State | Evidence |
+|---|---|---|
+| Env, models, annotations, 9,388 screenshots (600 eps), OCR, MD labels | ✅ | `env/`, `hf_cache/`, `data/`, `results/md_steps_n600.parquet` |
+| Label hand-check (30) | ✅ precision 27/30 = 0.90 | `reports/label_check.md` |
+| Pilot (10 eps) | ✅ | `reports/pilot.md`, outputs archived in `results/pilot/` |
+| Controller, 600 eps (job 3390346, array 0-3) | ✅ 600/600 `cache/*/done`; 9,242 calls, 2 first-try JSON fails (retried OK), 0 final; 2,517 merges, 2 merge fails (concat fallback) | `logs/ctrl_3390346_*.out`, `results/controller_stats/` |
+| Condition build (job 3390347) | ✅ specs for 600 eps; presence on 275 MD steps: text 89.5%, crop 65.5%, any 93.1%; C8 alternatives: same-template 203, same-category 60, digit 11, any 1 | `results/specs/`, `results/presence.parquet`, `results/counterfactuals.parquet`, `logs/cond_3390347.out` |
+| **Backbone (job 3390348, array 0-3, 150 eps each)** | 🔄 shard 0 COMPLETED (3 h 09 m, A40); shard 1 RUNNING since 19:40 (A40); shard 2 RUNNING since 20:06 (A100); shard 3 PENDING. 182/600 episode files in `results/raw/` at 20:13 | `logs/bb_3390348_*.out` (one `batch N:` line per 8 episodes) |
+| Analysis (job 3390349, `afterok:3390348`) | ⏳ PENDING (Dependency) — writes `results/n600_per_step.parquet`, `n600_summary_table.csv`, `n600_follow_table.csv`, prints both tables in `logs/analyze_3390349.out` | — |
+| Figures, failure cases, final report | ❌ not started (code ready and tested on pilot data) | `src/figures.py`, `src/failure_cases.py`, `scripts/gpu_hours.py` |
+
+Throughput: ~1.5–1.6 prompts/s on A40 (~2.9k prompt tokens each), ≈ 3 h per 150-episode shard. Expected backbone
+finish ≈ 02:00–03:00 on 2026-10-04 depending on when shard 3 starts. GPU-hours so far ≈ 5.3 (pilot 0.3, engine check 0.02,
+controller 1.7, backbone shard 0 3.3); expected total ≈ 13–14.
+
+### 4.2 How to check
+
+```bash
+cd <project dir> && source env.sh        # on Adroit: /scratch/network/<netid>/mementogui_causal
+squeue -u $USER -o "%i %j %T %M %N %R"
+sacct -j 3390348,3390349 -X -o JobID%14,State,Start,Elapsed,NodeList
+ls results/raw | wc -l                                  # 600 when the backbone is complete
+grep -c '^batch' logs/bb_3390348_*.out                  # 19 batches = shard complete
+grep -l Traceback logs/bb_3390348_*.err                 # should print nothing
+python3 scripts/gpu_hours.py                            # compute used (job names mg_*)
+```
+
+### 4.3 If something goes wrong
+
+* **A backbone shard hits the 4 h limit (TIMEOUT) or fails:** everything is resumable per episode (an episode file in
+  `results/raw/` is only written when complete; finished episodes are skipped). The analysis job (3390349) will then
+  never start because its dependency failed → `scancel 3390349`, resubmit the missing shard(s), then analysis:
+  `sbatch --mail-user=<you> --array=<k> slurm/backbone.sbatch 600` and
+  `sbatch --mail-user=<you> --dependency=afterok:<new> slurm/analyze.sbatch 600`.
+* **Never re-run the controller or the condition build** for n=600: the backbone outputs depend on these exact specs.
+  (Re-running conditions would also overwrite the C8 edited crops in `cache/*/cf/`.)
+* All jobs: submit **from the repo root**, pass `--mail-user=<user's addresses>` on the
+  command line (addresses: see the user's `princeton-adroit` Claude skill) (removed from tracked files because the repo is public). Keep jobs ≤ 4 h (gpu-short QOS, 4 GPUs/user)
+  so they don't compete with the user's own gpu-long jobs.
+
+### 4.4 Remaining work, in order
+
+1. **Wait for backbone + analysis.** Then sanity-check before believing anything (task spec §9): INVALID/parse rate per
+   condition, Launch/Wait/PressEnter rates, truncation (`</action>` present), C6/C7 n/a counts, that C1 ≡ C0 at step 0, that
+   C8 rows exist only on MD steps, that `changed_vs_C1` for C1 is 0.
+2. **Figures:** `python -m src.figures --prefix results/n600 --md_subset MD_present` → `results/figures/conditions_bar.png`,
+   `results/figures/follow_rate.png`. Look at them (render and inspect) before using.
+3. **Failure/annotated cases:** `python -m src.failure_cases --prefix results/n600 --k 10` → `reports/figs/case_01..10.png`,
+   `reports/failure_cases.csv`. Inspect each image and write a 1–2 line annotation per case in the report.
+4. **Copy deliverable names:** `results/n600_summary_table.csv` → also save as `results/summary_table.csv`
+   (task spec §8 name); per-step parquet = `results/n600_per_step.parquet`.
+5. **`python -m src.provenance`** (refresh commit hash) and **`python3 scripts/gpu_hours.py`** for the compute section.
+6. **Write `reports/final.md`** (task spec §8): setup; deviations from MementoGUI (prompted controller, no episodic
+   memory, v2 data / random_split, official prompt from tech report, Launch/CallUser mapping, MD `in_instruction` flag,
+   template-aware C8 alternatives); label precision (0.90, CI 0.74–0.97); presence rate (above); main table
+   (conditions × {all, MD, MD_present, MD_strict(_present), MD_crop_only} with CIs); **H1–H4 verdicts** stated against
+   the pre-registered predictions (H1: C1 > C0 on MD; H2: C7 ≈ C0 ≪ C1 on MD; H3: C5 < C1 on MD_crop_only; H4: C8 follow
+   ≫ C1 cf-rate); C8 vs C8t vs C8c (which channel drives following); calibration C0/C2 vs paper 54.58/66.31 (don't tune;
+   explain the Launch/no-history effect seen in the pilot); 10 annotated cases; limitations (label precision 0.90, small
+   MD_crop_only subset, prompted controller, GT-trajectory memory, single seed/greedy, A40 vs A100 mixed hardware —
+   greedy outputs can differ slightly across GPUs); compute (GPU-hours). Pilot-scale hints (n=7 MD steps, not
+   evidence): C1 67.1 vs C0 43.8 AMS on all steps; C8 follow 2/7 via text edits, 0/7 via crop-only edits.
+7. Update `README.md` status line, `LOG.md`, commit, and push to GitHub (check `git grep` for personal info first; specs
+   are gitignored because they contain absolute paths).
+8. Optional (task spec §7): activation patching on ≤ 50 MD steps with the HF model — only after 1–7.
+
+### 4.5 Open items / caveats to carry forward
+
+* Public GitHub history: commit `e5c5dfb` contains 10 pilot spec JSONs whose image paths include the netid; removed from
+  the tree in `7ecd050`. Scrubbing history needs a force-push — **ask the user first**.
+* Pilot outputs (`results/pilot/`) used the *old* C8 alternative picker; the full run regenerates those 10 episodes with
+  the template-aware picker. Don't mix pilot and full-run numbers.
+* `/home` was cleaned on 2026-10-03 (10 → 3.4 GiB). Keep all caches in the project (env.sh does this, incl. FlashInfer).
+* Mixed hardware: shard 2 runs on an A100, shards 0/1 on A40s. Greedy decoding is deterministic per device but not
+  guaranteed bit-identical across GPU types; mention in limitations.
 
 ## 5. Running on a new cluster (e.g. Neuronic) — checklist
 
@@ -134,8 +196,8 @@ OCR needs `tesseract` (4.x, eng) on PATH only if you re-run OCR; the shipped cac
 ```
 CONTEXT.md            this file          LOG.md     dated log          docs/task_spec.md   original task
 env.sh                environment (paths/caches relative to repo)
-scripts/              setup_env.sh, download.sh
-slurm/                ocr, pilot, controller (array), build_conditions, backbone (array), analyze
+scripts/              setup_env.sh, download.sh, engine_check.py (GPU smoke test), gpu_hours.py (compute tally)
+slurm/                ocr, pilot, engine_check, controller (array), build_conditions, backbone (array), analyze
 src/data.py           loading, official GT decode, stratified sampling
 src/remote_zip.py     extract screenshots from the HF split zip via range reads
 src/actions.py        UI-Venus ⇄ GUI-Odyssey converters + parser
@@ -149,11 +211,15 @@ src/vlm.py            vLLM helpers, model revisions, pixel budgets
 src/backbone.py       UI-Venus runner (results/raw/)
 src/analyze.py        official AMS, metrics, bootstrap, McNemar → summary_table.csv, follow_table.csv
 src/figures.py        bar chart + follow-rate chart
+src/failure_cases.py  10 annotated example cases (reports/figs/case_*.png)
 src/provenance.py     results/provenance.json
 tests/                converter + counterfactual tests
 artifacts/            OCR cache (600 eps), zip central-directory index
-results/              md_steps_*.parquet, type_steps_*.parquet, nonmd_sample_*.parquet, provenance.json
-reports/              label_check.md, figs/ (contact sheets)
+results/              md_steps_*.parquet, type_steps_*.parquet, nonmd_sample_*.parquet, provenance.json,
+                      presence.parquet, counterfactuals.parquet, specs/ (gitignored), raw/ (backbone outputs, gitignored),
+                      pilot/ (archived pilot outputs), controller_stats/
+reports/              pilot.md, label_check.md, figs/ (contact sheets; case panels later)
+cache/                controller memory states + crops + C8 edited crops (gitignored; Adroit only)
 ```
 
 ## 7. Ground rules carried over
