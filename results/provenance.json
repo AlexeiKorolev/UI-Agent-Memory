@@ -24,7 +24,7 @@
     "inclusionAI/UI-Venus": "1ffbaf653fb3d5d08e9ea14b013865496d68408e",
     "ui_venus_prompt_source": "UI-Venus-1.5 Technical Report, arXiv:2602.09082v2, Appendix A.3 'Mobile Prompt' (verbatim)"
   },
-  "this_repo_commit": "41fd3bb14de8b6c68e5083c1d742aa5528525248",
+  "this_repo_commit": "e5cec52c121e103f0b294ff6d967b810e1de6c02",
   "software": {
     "python": "3.11.17",
     "torch": "2.13.0+cu130",

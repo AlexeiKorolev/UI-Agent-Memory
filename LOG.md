@@ -69,3 +69,10 @@
   182/600 episodes done at 20:13. GPU-hours so far ≈ 5.3. Added src/failure_cases.py (tested on pilot data) and
   scripts/gpu_hours.py. Rewrote CONTEXT.md §4 as a "PICK UP HERE" handoff; added CLAUDE.md pointing to it.
 - 22:46 Backbone array 3390348 all 4 shards COMPLETED (A40: 3h09, 3h06; A100: 1h39, 1h34); 600/600 episodes. Analysis job 3390349 cancelled: per-resample pd.concat bootstrap would take many hours at n=600 (~270 CIs). Replaced with an equivalent vectorised episode bootstrap (per-episode sums/counts, numpy resampling; verified against the old implementation on pilot data, CIs agree within MC noise). Resubmitted analysis as 3390782.
+- 23:00 Analysis 3390782 COMPLETED (16 s with the vectorised bootstrap). Sanity checks all pass: INVALID ≤ 0.03%,
+  truncation 4/75,072, step-0 prompts identical across C0/C1/C3/C7, C8 rows only on MD steps, C1 self-change 0, no A40/A100
+  difference (< 1 AMS point). Diagnostics: C1 predicts TYPE on 57.8% of MD-present steps (rest ≈ all CLICK), 67.9% correct
+  when typing; C8 edits clean (original survives in 1/275 texts, 0 crops); C7 vs C0 McNemar p = 0.002 (strict p = 0.03).
+- Figures (`results/figures/`), 10 annotated cases (`reports/figs/case_*.png`; fixed a selection bug where de-duplication
+  dropped cases), provenance refreshed, GPU-hours 11.43. Wrote `reports/final.md` (numbers generated from the CSVs;
+  claims checked against computed values; softened one unverified explanation in §5.2). Study complete.

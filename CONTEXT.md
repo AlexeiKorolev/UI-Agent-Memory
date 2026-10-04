@@ -79,24 +79,25 @@ MementoGUI released no code/weights, so we re-implement a **MementoGUI-style wor
 | Label precision | Hand-checked 30 random MD labels from images: **27/30 = 0.90** (Wilson 95% CI 0.74–0.97). Errors: OCR missed white-on-colour text on current screen; stale browser history matched; loose fuzzy paraphrase. | `reports/label_check.md`, `reports/figs/md_label_check_*.png` |
 | OCR | System tesseract 4.1.1, eng, `--psm 11`, + inverted pass if mean luminance < 110; conf ≥ 30. Reading order via line clustering (a bucket-sort bug was found by unit test and fixed before the OCR job). Cache shipped as `artifacts/ocr_cache_600.tar.gz`. | `src/ocr.py` |
 
-## 4. Status — PICK UP HERE (updated 2026-10-03 20:15 EDT)
+## 4. Status — PICK UP HERE (updated 2026-10-03 23:59 EDT)
 
-### 4.1 Where things stand
+### 4.1 Where things stand: **the main study is COMPLETE**
 
-| Stage | State | Evidence |
-|---|---|---|
-| Env, models, annotations, 9,388 screenshots (600 eps), OCR, MD labels | ✅ | `env/`, `hf_cache/`, `data/`, `results/md_steps_n600.parquet` |
-| Label hand-check (30) | ✅ precision 27/30 = 0.90 | `reports/label_check.md` |
-| Pilot (10 eps) | ✅ | `reports/pilot.md`, outputs archived in `results/pilot/` |
-| Controller, 600 eps (job 3390346, array 0-3) | ✅ 600/600 `cache/*/done`; 9,242 calls, 2 first-try JSON fails (retried OK), 0 final; 2,517 merges, 2 merge fails (concat fallback) | `logs/ctrl_3390346_*.out`, `results/controller_stats/` |
-| Condition build (job 3390347) | ✅ specs for 600 eps; presence on 275 MD steps: text 89.5%, crop 65.5%, any 93.1%; C8 alternatives: same-template 203, same-category 60, digit 11, any 1 | `results/specs/`, `results/presence.parquet`, `results/counterfactuals.parquet`, `logs/cond_3390347.out` |
-| **Backbone (job 3390348, array 0-3, 150 eps each)** | 🔄 shard 0 COMPLETED (3 h 09 m, A40); shard 1 RUNNING since 19:40 (A40); shard 2 RUNNING since 20:06 (A100); shard 3 PENDING. 182/600 episode files in `results/raw/` at 20:13 | `logs/bb_3390348_*.out` (one `batch N:` line per 8 episodes) |
-| Analysis (job 3390349, `afterok:3390348`) | ⏳ PENDING (Dependency) — writes `results/n600_per_step.parquet`, `n600_summary_table.csv`, `n600_follow_table.csv`, prints both tables in `logs/analyze_3390349.out` | — |
-| Figures, failure cases, final report | ❌ not started (code ready and tested on pilot data) | `src/figures.py`, `src/failure_cases.py`, `scripts/gpu_hours.py` |
+All stages finished: controller (job 3390346), conditions (3390347), backbone (3390348; 4 shards: two on A40s
+~3 h each, two on A100s ~1.6 h each), analysis (3390782, after replacing a too-slow bootstrap with an equivalent
+vectorised one). **Final report: `reports/final.md`.** Results: `results/n600_summary_table.csv` (= `summary_table.csv`),
+`results/n600_follow_table.csv`, `results/n600_per_step.parquet`, figures in `results/figures/`, 10 annotated cases in
+`reports/figs/case_*.png` + `reports/failure_cases.csv`. Compute: 11.4 GPU-hours.
 
-Throughput: ~1.5–1.6 prompts/s on A40 (~2.9k prompt tokens each), ≈ 3 h per 150-episode shard. Expected backbone
-finish ≈ 02:00–03:00 on 2026-10-04 depending on when shard 3 starts. GPU-hours so far ≈ 5.3 (pilot 0.3, engine check 0.02,
-controller 1.7, backbone shard 0 3.3); expected total ≈ 13–14.
+Headline: H1 supported (MD-present text acc C1 40.6 vs C0 10.2); H2 mostly supported (C7 17.2 ≪ C1, but C7 > C0, and on
+*all steps* C7 recovers ~48% of the AMS gain = presence/format effect); H3 not testable as pre-registered (crop-only n=10)
+but indirect evidence that crop content matters (C5 ≈ C3 < C1); H4 supported (C8 follow 20.7% vs 0% under C1; text
+channel 14.1% ≫ crop channel 1.6%). C2 (raw history) beats C1.
+
+**Possible next steps (none required):** (a) optional activation patching (task spec §7) on ≤ 50 MD steps where C1 is
+right and C8 follows (`reports/failure_cases.csv`/per-step parquet identify them); (b) a closed-loop (predicted-history)
+variant; (c) a larger crop-only subset to test H3 directly; (d) ask the user whether to scrub netid paths from GitHub
+history (commit `e5c5dfb`; needs a force-push).
 
 ### 4.2 How to check
 
