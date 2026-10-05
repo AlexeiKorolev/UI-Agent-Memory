@@ -12,10 +12,10 @@
 #SBATCH --gres=gpu:1
 #SBATCH --constraint="gpu80|a40"
 #SBATCH --array=0-3
-# Usage: sbatch slurm/backbone.sbatch <N> [conds]   (resumable; finished episodes are skipped)
+# Usage: sbatch slurm/backbone.sbatch <N> [conds]   (resumable; finished episodes are skipped) ; extra args go to src.backbone (e.g. --specs/--raw)
 set -eo pipefail
 source "$SLURM_SUBMIT_DIR/env.sh"   # submit from the repo root
 export HF_HUB_OFFLINE=1 TRANSFORMERS_OFFLINE=1 OMP_THREAD_LIMIT=1
 cd $PROJ; echo "$(date) $SLURMD_NODENAME"; nvidia-smi --query-gpu=name,memory.total --format=csv,noheader
-python -m src.backbone --n ${1:-300} --shard $SLURM_ARRAY_TASK_ID --nshards 4 --conds ${2:-C0,C1,C2,C3,C4,C5,C6,C7,C8,C8t,C8c} --batch_eps 8
+python -m src.backbone --n ${1:-300} --shard $SLURM_ARRAY_TASK_ID --nshards 4 --conds ${2:-C0,C1,C2,C3,C4,C5,C6,C7,C8,C8t,C8c} --batch_eps 8 "${@:3}"
 echo "$(date) done"

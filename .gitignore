@@ -18,3 +18,5 @@ third_party/*.txt
 third_party/*.md
 results/specs/
 results/pilot/specs/
+results/specs_at/
+results/raw_at/

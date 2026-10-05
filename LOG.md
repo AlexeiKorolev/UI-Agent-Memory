@@ -76,3 +76,18 @@
 - Figures (`results/figures/`), 10 annotated cases (`reports/figs/case_*.png`; fixed a selection bug where de-duplication
   dropped cases), provenance refreshed, GPU-hours 11.43. Wrote `reports/final.md` (numbers generated from the CSVs;
   claims checked against computed values; softened one unverified explanation in §5.2). Study complete.
+
+## 2026-10-04 (Sun)
+- Failure analysis of C1 (all steps, 3,167/9,388 wrong): 1,917 wrong action type, 1,123 wrong click location, 82 wrong
+  text, 45 wrong scroll direction. GT TEXT steps: C1 clicks on 393/995 (reasoning often "click the search bar to start
+  typing <right string>"); GT COMPLETE: 183 clicks. Accuracy decays with step index (C1 70.0 at steps 1-2 -> 57.5 at
+  20+; C2 66.1). Controller salience is saturated (~89% of entries >= 0.8), writes on 98% of steps. C1 replaces the
+  prompt's "Previous Actions" slot with screen summaries, so the backbone never sees which actions were taken.
+- Follow-up 1, action trace (pre-specified, no tuning; evaluated once on the same n=600 episodes, reusing the frozen
+  specs/cache): `src/action_trace.py` builds results/specs_at/ from results/specs/ (never rebuilt) adding
+  "Actions taken so far: [step k] <GT action in UI-Venus syntax>". Conditions A0 actions only, A1 C1+actions,
+  A2 C2 screenshots interleaved with actions, A7 C7+recipient's actions, A8 C8+actions (needed string also replaced in
+  earlier Type actions: 89 edits; original survives in 1/275 A8 histories, as in C8). 26 MD steps have the needed
+  string in the clean action trace (typed earlier). backbone.py/analyze.py take --specs/--raw/--out_tag (defaults =
+  main study, whose files are untouched). Submitted backbone 3392521 (array 0-3) -> analysis 3392522
+  (outputs results/n600_at_*).

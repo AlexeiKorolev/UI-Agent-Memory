@@ -39,17 +39,17 @@ def to_parts(spec):
     return [p["text"] if "text" in p else load_img(p) for p in spec]
 
 
-def run(eids, llm, conds, max_tokens, batch_eps):
+def run(eids, llm, conds, max_tokens, batch_eps, specs=SPECS, raw_dir=RAW):
     sp = greedy(max_tokens)
-    RAW.mkdir(parents=True, exist_ok=True)
-    todo = [e for e in eids if not (RAW / f"{e}.jsonl").exists() and (SPECS / f"{e}.json").exists()]
+    raw_dir.mkdir(parents=True, exist_ok=True)
+    todo = [e for e in eids if not (raw_dir / f"{e}.jsonl").exists() and (specs / f"{e}.json").exists()]
     print(f"{len(todo)} episodes to run", flush=True)
     for b in range(0, len(todo), batch_eps):
         chunk = todo[b:b + batch_eps]
         t0 = time.time()
         jobs, uniq = [], {}
         for e in chunk:
-            spec = json.load(open(SPECS / f"{e}.json"))
+            spec = json.load(open(specs / f"{e}.json"))
             for t, cs in spec.items():
                 for c in conds:
                     if cs.get(c) is None:
@@ -67,11 +67,11 @@ def run(eids, llm, conds, max_tokens, batch_eps):
             by_ep.setdefault(e, []).append(dict(episode_id=e, step=t, cond=c, raw=raw,
                                                 action=venus_to_odyssey(parse_venus(raw)), n_images=nimg, prompt_hash=h))
         for e, rows in by_ep.items():
-            tmp = RAW / f"{e}.jsonl.tmp"
+            tmp = raw_dir / f"{e}.jsonl.tmp"
             with open(tmp, "w") as f:
                 for r in rows:
                     f.write(json.dumps(r) + "\n")
-            tmp.rename(RAW / f"{e}.jsonl")
+            tmp.rename(raw_dir / f"{e}.jsonl")
         _img_cache.clear()
         dt = time.time() - t0
         print(f"batch {b // batch_eps}: {len(chunk)} eps, {len(jobs)} jobs, {len(hs)} unique prompts, "
@@ -86,8 +86,10 @@ if __name__ == "__main__":
     ap.add_argument("--conds", default="C0,C1,C2,C3,C4,C5,C6,C7,C8,C8t,C8c")
     ap.add_argument("--max_tokens", type=int, default=768)
     ap.add_argument("--batch_eps", type=int, default=10)
+    ap.add_argument("--specs", default=str(SPECS), help="spec dir (default: main study)")
+    ap.add_argument("--raw", default=str(RAW), help="output dir (default: main study)")
     a = ap.parse_args()
     eids = sample(a.n)[a.shard::a.nshards]
     llm = make_llm("backbone", max_model_len=24576, max_images=32)
-    run(eids, llm, a.conds.split(","), a.max_tokens, a.batch_eps)
+    run(eids, llm, a.conds.split(","), a.max_tokens, a.batch_eps, Path(a.specs), Path(a.raw))
     print("DONE")

@@ -12,5 +12,5 @@
 set -eo pipefail
 source "$SLURM_SUBMIT_DIR/env.sh"   # submit from the repo root
 cd $PROJ; echo "$(date) $SLURMD_NODENAME"
-python -m src.analyze --n ${1:-300} ${2:+--tag $2}
+python -m src.analyze --n ${1:-300} ${2:+--tag $2} "${@:3}"
 echo "$(date) done"

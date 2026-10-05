@@ -23,7 +23,7 @@ from GUIOdyssey_action_matching import action_matching  # noqa: E402  (official,
 
 RAW = PROJ / "results" / "raw"
 RES = PROJ / "results"
-CONDS = ["C0", "C1", "C2", "C3", "C4", "C5", "C6", "C7", "C8", "C8t", "C8c"]
+CONDS = ["C0", "C1", "C2", "C3", "C4", "C5", "C6", "C7", "C8", "C8t", "C8c", "A0", "A1", "A2", "A7", "A8"]
 TEXT_T = 0.8
 N_BOOT = 1000
 
@@ -70,12 +70,13 @@ def odyssey_decode_safe(s):
         return None
 
 
-def load_results(n):
+def load_results(n, raw_dirs=(RAW,)):
     rows = []
     for e in sample(n):
-        f = RAW / f"{e}.jsonl"
-        if f.exists():
-            rows += [json.loads(l) for l in open(f)]
+        for d in raw_dirs:
+            f = Path(d) / f"{e}.jsonl"
+            if f.exists():
+                rows += [json.loads(l) for l in open(f)]
     df = pd.DataFrame(rows)
     gt = []
     for e in df.episode_id.unique():
@@ -212,7 +213,7 @@ def summarize(df, md, pres, cf, out_prefix):
 def follow_table(df):
     """C8 follow rates on MD steps: counterfactual vs original vs neither (incl. C1 baseline)."""
     rows = []
-    for cond in ["C1", "C8", "C8t", "C8c"]:
+    for cond in ["C1", "C8", "C8t", "C8c", "A1", "A8"]:
         for sname, mask in [("MD_with_cf", df.is_md & df.alternative.notna()),
                             ("MD_present_with_cf", df.is_md & df.present_any & df.alternative.notna())]:
             d = df[(df.cond == cond) & mask]
@@ -232,12 +233,14 @@ if __name__ == "__main__":
     ap.add_argument("--n", type=int, default=300)
     ap.add_argument("--md", default=None)
     ap.add_argument("--tag", default="")
+    ap.add_argument("--raw", default=str(RAW), help="comma-separated raw output dirs to pool")
+    ap.add_argument("--out_tag", default="", help="suffix for output files (e.g. _at)")
     a = ap.parse_args()
     md = pd.read_parquet(a.md or RES / f"md_steps_n{a.n}.parquet")
     pres = pd.read_parquet(RES / f"presence{a.tag}.parquet") if (RES / f"presence{a.tag}.parquet").exists() else pd.DataFrame()
     cf = pd.read_parquet(RES / f"counterfactuals{a.tag}.parquet") if (RES / f"counterfactuals{a.tag}.parquet").exists() else pd.DataFrame()
-    df = load_results(a.n)
-    prefix = str(RES / f"n{a.n}{a.tag}")
+    df = load_results(a.n, a.raw.split(","))
+    prefix = str(RES / f"n{a.n}{a.tag}{a.out_tag}")
     df, tab = summarize(df, md, pres, cf, prefix)
     ft = follow_table(df)
     ft.to_csv(f"{prefix}_follow_table.csv", index=False)
