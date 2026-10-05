@@ -91,3 +91,16 @@
   string in the clean action trace (typed earlier). backbone.py/analyze.py take --specs/--raw/--out_tag (defaults =
   main study, whose files are untouched). Submitted backbone 3392521 (array 0-3) -> analysis 3392522
   (outputs results/n600_at_*).
+- 2026-10-05 01:51 Action-trace run done: backbone 3392521 (3 shards A100 ~1.0 h, 1 shard h11g3 1.8 h), analysis
+  3392522 -> results/n600_at_{summary_table,follow_table}.csv, n600_at_per_step.parquet (C* rows identical to the
+  main study). Sanity: INVALID <= 0.011%, truncation 2/37,827, step-0 prompts identical to C0, A8 only on MD steps.
+  AMS all steps: A0 68.2, A1 71.8, A2 76.6, A7 64.1 (vs C0 38.3, C1 66.3, C2 71.0, C7 51.6).
+  MD-present text acc: A0 40.2, A1 53.5, A2 64.1, A7 36.7; strict-present: A0 19.7, A1 45.4, A2 57.9, A7 16.4.
+  A8 follow 25.4% (C8 20.7%); strict 32.9%. TEXT steps predicted as CLICK: C1 39.5% -> A1 19.8%.
+  Leakage checks: copying the previous GT action ~ base rate (8-9% vs GT repeat rate 7.9%); gains hold excluding repeats.
+  Needed string in trace on only 25/256 MD-present steps; gains hold on the other 231.
+  Finding: with the trace the backbone types the needed string on 30/152 strict-present steps with NO memory (A0), e.g.
+  'BTS' (world knowledge), 'Los Angeles' (guess), and a ~200-char recipe verbatim (possible training-data
+  memorisation; GUI-Odyssey is not named in the UI-Venus-1.5 report's data list, which says "30+ sources ... and so
+  on"). C0 had the same knowledge in its reasoning but clicked instead of typing. => "strict MD" is not memory-only;
+  content effects should be read as A1 vs A0/A7 (45.4 vs 19.7/16.4 strict), not vs C0.
