@@ -135,3 +135,28 @@
     shrinks once actions are given (A1-A3 < C1-C3); L3 content effect replicates (A1 > A7, C8 follow > 0);
     L4 (exploratory) C2-C1 gap smaller on long episodes than in n=600.
   * Pilots: 10 episodes per run in runs/<name>_pilot (job 3394140 = odylong_pilot).
+- Pilot fix (memgui, before any full-run labels): the teacher's <ui_observation> often describes the screen *after*
+  the action ("the title field now contains 'First Day of Summer'" with an empty field on the screenshot; 6/14 pilot
+  TYPE steps had desc-sim 1.0 vs OCR <= 0.52), which wrongly marked needed strings as visible. It is no longer used:
+  MemGUI MD labels rely on OCR alone (teacher text kept as `teacher_observation`, unused). Pilot MD: 2 -> 5 of 14
+  scored TYPE/ANSWER steps (1 strict). odylong pilot (job 3394140, 296 steps) ran end to end: 0 INVALID, 0 truncated,
+  C2b image count = C1's. Full odylong chain: build 3394265 -> backbone 3394266 (8 shards) -> analysis 3394267.
+- memgui pilot (job 3394142, 157 scored steps) ran end to end: 0 truncated, 1 INVALID (C0); WAIT/COMPLETE scored by
+  type; scroll acc 31-46% (convention OK). Full memgui chain: build 3394295 -> backbone 3394296 (8 shards) -> analysis 3394297.
+- 08:06 odylong done: controller 3394145 (4 x ~11 min), OCR/MD 3394143 (148 MD, 67 strict, 115 eps), build 3394265
+  (presence 94.6%), backbone 3394266 (8 shards: 7 on A100 ~1 h, 1 on A40 2.3 h), analysis 3394267 ->
+  runs/odylong/results/n155_*; paired tests `src/long_compare.py` -> runs/long_compare_{paired,did,steps}.csv.
+  Sanity: INVALID <= 0.02%, 0 truncated, step-0 prompts = C0 for all conditions, C8/A8 only on MD, C0 Launch 16%.
+  All-step AMS: C0 34.4, C1 62.0, C2 68.7, C2b 61.1, C2w 63.7, C3 59.2, C5 59.7, C7 48.8; A0 67.5, A1 68.3, A2 73.5,
+  A2b 73.1, A3 66.9, A5 67.8, A7 63.2. MD-present text acc (n=140): C1 35.7, C2b 47.9, C2w 48.6, C2 48.6, A0 52.1,
+  A1 46.4, A2b 67.1, A2 68.6, A7 42.9; strict-present (n=63): C1 20.6, C2b 20.6, C2 34.9, A0 25.4, A1 34.9, A2b 49.2,
+  A2 60.3, A7 20.6. C8 follow 17.1% (strict 12.7), A8 20.7%.
+  L1 not supported: at matched pixels screenshots >= memory (MD-present C2b-C1 +12.1 [4.9, 20.7], p=0.009; A2b-A1
+  +20.7, p<1e-4; strict: C tie, A +14.3 p=0.09; all steps C1 ~ C2b, A2b > A1 by 4.9). Checked: not because the source
+  screen is in the window (C2b 50.0% when it is outside, 44.4% inside). Mechanism: screenshots raise the TYPE rate
+  (C1 57.9 -> C2b 66.4) and memory text *distracts* when the string is in the instruction (acc|typed C1 74.0, A1 68.3
+  vs C2b 91.5, A0 91.9).
+  L2 supported (weakly): crops matter without actions (C1-C3 +7.1 on MD-present, p=0.04) but not with them (A1-A3
+  -0.7); DiD 7.9 [0.0, 15.8]; all steps DiD 1.4 [0.5, 2.5].
+  L3 partly: content effect only on strict steps (A1 vs A7 34.9 vs 20.6, p=0.049; A1 vs A0 +9.5 ns); C8 follow
+  17.1% > 0 (C1: 0). L4 opposite: C2-C1 gap is larger on long episodes (+6.7 vs +4.8; diff 1.9 [0.5, 3.4]).

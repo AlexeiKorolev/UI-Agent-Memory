@@ -14,8 +14,9 @@ screen pixels and is not used. Conversion:
   steps without a parsable tool call (4 in the test split) -> dropped
 Steps the dataset's evaluator marked unreasonable stay in the trajectory (they happened, so they shape later screens,
 memory and history) but get score=False and are not evaluated. The teacher's responses (reasoning, folded history,
-memory contents) are never shown to any model; its <ui_observation> of the current screen is kept as the step
-`description`, used only (like GUI-Odyssey's) to check whether a needed string is visible on the current screen.
+memory contents) are never shown to any model. Its <ui_observation> is stored as `teacher_observation` but NOT used as
+the step `description` (empty): the pilot showed it often describes the screen *after* the action (e.g. "the title
+field now contains 'First Day of Summer'" while the field is empty), so MD labels rely on OCR alone.
 
 Usage (login node; needs internet):  MG_DATASET=memgui python -m src.memgui convert | download
 """
@@ -99,8 +100,8 @@ def convert():
             k = len(steps)
             obs = re.search(r"<ui_observation>(.*?)</ui_observation>", s["assistant_response"], re.S)
             ok = s["is_reasonable"] in (True, "True", "true")
-            steps.append(dict(step=k, action=gt[0], info=gt[1], screenshot=f"{eid}_{k}.png", score=ok,
-                              description=obs.group(1).strip() if obs else "", src_step=int(s["step"]),
+            steps.append(dict(step=k, action=gt[0], info=gt[1], screenshot=f"{eid}_{k}.png", score=ok, description="",
+                              teacher_observation=obs.group(1).strip() if obs else "", src_step=int(s["step"]),
                               src_screenshot=s["screenshot"]))
             members[f"{eid}_{k}.png"] = Path(s["screenshot"]).name
             stats["scored"] += ok
