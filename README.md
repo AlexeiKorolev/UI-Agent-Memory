@@ -5,8 +5,10 @@ A MementoGUI-style intervention study on GUI-Odyssey (v2): a prompted Qwen3-VL-8
 interventions (none / clean / all screenshots / text-only / crops-only / blank crops / shuffled crops / other episode's
 memory / targeted counterfactual edits) to test whether it uses memory *content* or merely benefits from its *presence*.
 
-**Status (2026-10-06):** main study complete; follow-up 1 (adding the action trace, report §9) complete; follow-up 2
-(within-episode task-graph memory) designed in [`docs/graph_memory_design.md`](docs/graph_memory_design.md), not run. Read [`reports/final.md`](reports/final.md) for results. See [`CONTEXT.md`](CONTEXT.md) (§4 = pick-up point) for
+**Status (2026-10-06):** main study complete; follow-up 1 (adding the action trace, report §9) complete; long-horizon
+follow-up (155 long GUI-Odyssey episodes + MemGUI-3K test split, screenshot baselines under the memory's budget,
+report §10) complete; within-episode task-graph memory designed in
+[`docs/graph_memory_design.md`](docs/graph_memory_design.md), not run. Read [`reports/final.md`](reports/final.md) for results. See [`CONTEXT.md`](CONTEXT.md) (§4 = pick-up point) for
 the full design, decisions, verified facts, current status and the step-by-step run guide; [`LOG.md`](LOG.md) for the
 dated log; [`docs/task_spec.md`](docs/task_spec.md) for the original specification.
 

@@ -81,7 +81,22 @@ MementoGUI released no code/weights, so we re-implement a **MementoGUI-style wor
 
 ## 4. Status — PICK UP HERE (updated 2026-10-06)
 
-### 4.0 Latest: follow-up 1 (action trace) COMPLETE; follow-up 2 (task-graph memory) DESIGNED, not run
+### 4.0a Latest: long-horizon follow-up COMPLETE (report §10, LOG 2026-10-06)
+
+* Runs live under `runs/<name>/` (cache, specs, raw, tables), selected by `MG_DATASET` (odyssey|memgui) and `MG_RUN`;
+  unset = main study paths (untouched). `odylong` = 155 GUI-Odyssey test episodes with >= 25 steps; `memgui` = MemGUI-3K
+  test split converted by `src/memgui.py` (tool-call GT; memory_* actions dropped; unreasonable steps unscored);
+  `*_pilot` = 10-episode pilots. New conditions C2b/C2w/A2b (screenshots under C1's budget / last 4) and A3/A5.
+* Pipeline per run: `MG_DATASET=.. MG_RUN=.. sbatch --mail-user=<you> slurm/ocr_md.sbatch N` + `slurm/controller.sbatch N`
+  -> `slurm/build_long.sbatch N` -> `NSHARDS=8 sbatch --array=0-7 slurm/backbone_long.sbatch N` ->
+  `slurm/analyze.sbatch N "" --raw runs/<run>/results/raw,runs/<run>/results/raw_at`; then `python -m src.long_compare`.
+  Submit from the repo root; in this agent shell a literal leading `cd <repo>` can be dropped, use `P=<repo>; cd $P`.
+* Headline: equal-budget screenshots >= memory on long GUI-Odyssey (A2b 67.1 vs A1 46.4 MD-present; notes distract);
+  memory >> screenshots on MemGUI-3K strict MD (A1 50.6 vs A2b 18.5, A0 9.9, A7 7.4). 26.1 GPU-hours.
+* Not done (discussed with the user): predicted-history (non-teacher-forced) action lists P0/P1/P2/P2b (~14 GPU-h,
+  awaiting the user's choice of scope); episodic memory (not implemented; MemGUI-3K train split is a candidate bank).
+
+### 4.0 Follow-up 1 (action trace) COMPLETE; task-graph memory DESIGNED, not run
 
 * **Action trace** (`src/action_trace.py`, report §9): conditions A0/A1/A2/A7/A8 = C0/C1/C2/C7/C8 + "Actions taken so
   far: [step k] <GT action>" in the same prompt slot. Specs `results/specs_at/` were built *from* the frozen

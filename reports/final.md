@@ -27,6 +27,13 @@ tuned after seeing results except the one pre-full-run change documented in `rep
   click-instead-of-type errors, and makes the content effect cleaner: with actions, wrong-episode memory now *hurts*
   (64.1 vs 68.2) while clean memory adds 26 points on strict MD (45.4 vs 19.7). The backbone also types 31.5% of
   never-seen strings exactly from priors, so MD accuracy must be read against the actions-only baseline.
+* **Long-horizon follow-up (§10, 2026-10-06): does memory beat just keeping recent screenshots?** Tested on the 155
+  longest GUI-Odyssey episodes and on MemGUI-3K (295 memory-intensive episodes), with screenshot baselines held to the
+  memory's own pixel budget. **It depends on the task.** On long GUI-Odyssey, equal-budget screenshots match or beat our
+  memory (MD-present, with actions: 67.1 vs 46.4) because they fix the interaction state and notes add distractor
+  strings. On MemGUI-3K, where exact values must be carried across apps, memory wins clearly (strict MD with actions:
+  50.6 vs 18.5; actions alone 9.9; other episode's memory 7.4) and edited values are followed (39.5% strict).
+  Keeping all recent screenshots at full resolution stays best on overall step accuracy in both.
 
 ## 1. Setup
 
@@ -359,7 +366,7 @@ unaffected, since the counterfactual strings are not what priors would produce (
 Next steps (design only, not run): within-episode task-graph memory with structural interventions
 (`docs/graph_memory_design.md`); related work snapshot in `docs/related_work.md`.
 
-## 10. Follow-up 2 (2026-10-06): long tasks and screenshots under the memory's budget
+## 10. Long-horizon follow-up (2026-10-06): long tasks and screenshots under the memory's budget
 
 **Why.** C2 (raw past screenshots) beat our memory, but the comparison favoured C2 in two ways: it gets ~7× the
 pixels of past images per step (2.62 vs 0.39 MP, 40 sampled episodes) and GUI-Odyssey episodes (median 14 steps) rarely
@@ -459,11 +466,66 @@ Follow rates (MD-present, n=140): C8 17.1% [11.2, 24.1], C8t 12.9%, **C8c 0.0%**
   sample (difference 1.9 [0.5, 3.4]). By step index (C1 / C2 / A1 / A2): steps 0–9 65.9 / 69.9 / 72.1 / 74.4, steps 20–29
   60.7 / 69.8 / 67.2 / 73.7, steps 30–39 49.6 / 59.5 / 56.3 / 64.4 (`runs/long_compare_steps.csv`).
 
-### 10.4 Results: MemGUI-3K
+### 10.4 Results: MemGUI-3K (`runs/memgui/results/n295_*`)
 
-_Backbone running (jobs 3394296 → analysis 3394297); filled in when it completes._
+Sanity: INVALID ≤ 0.02%, no truncated outputs, step-0 prompts identical to C0, C8/A8 only on MD steps. C0 predicts
+`Launch` on 37.5% of steps (episodes start on the home screen; the reference opens apps by tapping), so C0 is
+especially low. Controller: 1 final write failure and 8 merge fallbacks in ~7,960 calls.
 
-### 10.5 Limitations of follow-up 2
+**Table 10b. AMS on all 6,146 scored steps and text accuracy on MD steps with the string in memory**
+
+| | AMS all steps | MD-present (n=161) | strict MD-present (n=81) |
+|---|---|---|---|
+| C0 nothing | 23.5 [21.8, 25.2] | 3.1 [0.7, 6.2] | 1.2 [0.0, 4.2] |
+| C1 memory | 51.4 [49.5, 52.9] | 31.7 [24.3, 39.1] | **27.2** [17.5, 37.2] |
+| C2 last 20 screenshots | **54.3** [52.4, 56.1] | 28.0 [20.4, 35.3] | 18.5 [8.5, 28.9] |
+| C2b screenshots, C1's budget | 48.6 [46.7, 50.5] | 24.2 [17.2, 31.2] | 2.5 [0.0, 6.6] |
+| C2w last 4 screenshots | 51.3 [49.4, 53.2] | 24.8 [17.2, 31.9] | 4.9 [1.1, 10.7] |
+| C3 notes only | 48.6 [46.7, 50.1] | 21.1 [15.1, 28.1] | 21.0 [12.0, 30.9] |
+| C5 gray crops | 50.0 [48.3, 51.5] | 21.1 [15.2, 28.1] | 22.2 [13.0, 31.7] |
+| C7 other episode | 37.1 [35.4, 38.8] | 7.5 [3.7, 12.1] | 2.5 [0.0, 6.1] |
+| A0 actions only | 54.6 [52.8, 56.4] | 34.8 [25.6, 43.2] | 9.9 [3.8, 16.9] |
+| A1 memory + actions | 59.2 [57.3, 61.0] | 58.4 [49.1, 67.8] | **50.6** [36.1, 65.4] |
+| A2 screenshots + actions | **62.4** [60.6, 64.1] | **61.5** [53.3, 68.8] | 44.4 [30.9, 56.3] |
+| A2b budget screenshots + actions | 60.0 [58.2, 61.7] | 47.2 [37.9, 55.6] | 18.5 [10.5, 26.8] |
+| A3 notes only + actions | 57.1 [55.2, 59.0] | 51.6 [42.2, 60.7] | 38.3 [25.0, 52.9] |
+| A5 gray crops + actions | 58.2 [56.4, 60.0] | 53.4 [43.9, 62.1] | 42.0 [28.4, 55.9] |
+| A7 other episode + actions | 53.5 [51.8, 55.2] | 37.9 [28.9, 46.3] | 7.4 [2.4, 13.5] |
+
+Follow rates (MD-present, n=161): C8 11.2% [6.6, 16.6], C8t 9.3%, C8c 1.2%, **A8 21.7%** [14.3, 30.6] (strict 39.5%);
+C1/A1 0.6% (1/161; on all 238 MD steps 4 and 5, i.e. the backbone occasionally produces the alternative on its own,
+e.g. a nearby price).
+
+**Verdicts on MemGUI-3K:**
+
+* **L1 supported on memory-dependent steps — the opposite of long GUI-Odyssey.** Strict: C1 27.2 vs C2b 2.5 (22 vs 2,
+  p < 0.001); A1 50.6 vs A2b 18.5 (30 vs 4, p < 0.001); C1 vs C2w 27.2 vs 4.9 (20 vs 2). MD-present: A1 58.4 vs A2b
+  47.2 (31 vs 13, p = 0.01); C1 vs C2b +7.5 (p = 0.13). All steps: C1 > C2b (51.4 vs 48.6, 676 vs 509, p < 0.001),
+  A1 ≈ A2b (59.2 vs 60.0, p = 0.10). Even against all 20 full screenshots, memory is not worse on strict steps
+  (C1 27.2 vs C2 18.5, p = 0.23; A1 50.6 vs A2 44.4, p = 0.47), though C2/A2 stay best on all steps.
+  *Checked:* MemGUI's strict strings are exact values copied from screens several steps back ("$386.99",
+  "3.4750869061413", "Kindle Paperwhite: $179.99, 4.7 stars …"; median gap 5 steps). The source screen is outside the
+  C2b window on 65%; when it is inside, the downsampled screenshots are mostly unreadable (C2b right on 2/28, C2 at
+  0.35 MP 32.1%). The notes keep such values verbatim; that is where a memory pays off.
+* **L2 not supported on MemGUI.** Crops still help with actions: A1 vs A3 +6.8 on MD-present (14 vs 3, p = 0.013) and
+  +12.3 strict (11 vs 1, p = 0.006); A1 vs A5 +5.0 (p = 0.04). DiD (C1−C3) − (A1−A3) 3.7 [−3.2, 10.2].
+* **L3 strongly supported.** A1 vs A7 strict 50.6 vs 7.4 (35 vs 0); A1 vs A0 strict 50.6 vs 9.9 (35 vs 2), MD-present
+  58.4 vs 34.8 (44 vs 6). C1 vs C7 strict 27.2 vs 2.5. A8 follows the edited value on 39.5% of strict steps.
+* **L4 supported here.** C2 − C1 = 3.0 points vs 4.8 on the n=600 sample (difference −1.9 [−3.2, −0.4]); by step index
+  C1 / C2: steps 0–9 55.3 / 59.7, 40+ 45.9 / 46.8.
+
+### 10.5 Synthesis
+
+Whether a MementoGUI-style memory beats simply keeping recent screenshots depends on what the task needs remembered.
+On GUI-Odyssey, even in its longest episodes, the needed strings are short, often also in the instruction, and the
+main problem is knowing the interaction state; recent screenshots under the same pixel budget do that as well or
+better, and memory notes add distractor strings. On MemGUI-3K, built around carrying exact values across apps, the
+notes' verbatim text is what makes those steps solvable: with the action list, memory is right on 50.6% of strict
+steps vs 18.5% for equal-budget screenshots and 9.9% for actions alone, and the backbone follows edited values. Keeping
+*all* recent screenshots at full resolution (C2/A2) remains the best on overall step accuracy in both datasets, with
+~3.5× as many past images per step (13–14 vs ~3.8) and several times the pixels. Crops mostly matter as a "you are mid-task" signal on GUI-Odyssey, but carry content on MemGUI.
+
+### 10.6 Limitations of the long-horizon follow-up
 
 * Our controller is prompted (one Qwen3-VL-8B doing MementoGUI's step-processor and compressor roles); MementoGUI trains
   four LoRA modules and adds episodic memory. The verdicts are about *this* memory, not MementoGUI's.
@@ -472,3 +534,5 @@ _Backbone running (jobs 3394296 → analysis 3394297); filled in when it complet
 * odylong has only 63 strict MD-present steps; strict-step differences under ~15 points are not resolvable.
 * MemGUI-3K ground truth is a model's rollout (filtered by an evaluator), clicks are scored by distance only, and
   ANSWER steps by action type only; its single category makes C7 donors any other episode.
+* Compute for the long-horizon follow-up: 26.1 GPU-hours (backbone 22.4, controller 2.0, pilots 1.7); total project ≈ 42.4.
+* Not tested: episodic (cross-episode) memory; predicted (non-teacher-forced) history.

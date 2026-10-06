@@ -160,3 +160,15 @@
   -0.7); DiD 7.9 [0.0, 15.8]; all steps DiD 1.4 [0.5, 2.5].
   L3 partly: content effect only on strict steps (A1 vs A7 34.9 vs 20.6, p=0.049; A1 vs A0 +9.5 ns); C8 follow
   17.1% > 0 (C1: 0). L4 opposite: C2-C1 gap is larger on long episodes (+6.7 vs +4.8; diff 1.9 [0.5, 3.4]).
+- 13:5x memgui done: controller 3394150 (295/295; 1 write fail, 8 merge fallbacks), OCR/MD 3394149 (238 MD, 144
+  strict), build 3394295 (presence 67.6%), backbone 3394296 (8 shards, 1.1-2.9 h), analysis 3394297 ->
+  runs/memgui/results/n295_*. Sanity as for odylong; C0 Launch 37.5% (home-screen starts).
+  All-step AMS: C0 23.5, C1 51.4, C2 54.3, C2b 48.6, C2w 51.3, A0 54.6, A1 59.2, A2 62.4, A2b 60.0, A7 53.5.
+  Strict MD-present (n=81): C1 27.2, C2 18.5, C2b 2.5, C2w 4.9, A0 9.9, A1 50.6, A2 44.4, A2b 18.5, A3 38.3, A7 7.4;
+  A8 follow 39.5% strict (21.7% MD-present).
+  L1 supported on MemGUI (A1 vs A2b strict 30 vs 4; C1 vs C2b 22 vs 2) - opposite of odylong. Checked: strict strings
+  are exact values (prices, long numbers) a median 5 steps back; source outside the C2b window on 65%, and inside it
+  the downsampled screens are mostly unreadable (C2b 2/28; C2 at 0.35 MP 32%). L2 not supported on MemGUI (A1-A3
+  +12.3 strict, p=0.006). L3 strongly supported (A1 vs A7 35 vs 0 strict). L4 supported on MemGUI (C2-C1 3.0 vs 4.8).
+  Long-horizon follow-up total 26.1 GPU-hours (project ~42.4). Report §10 + TL;DR, README, CONTEXT §4.0a updated.
+  Naming: this is the "long-horizon follow-up"; the task-graph design (docs/graph_memory_design.md) is separate.
