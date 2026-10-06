@@ -104,3 +104,15 @@
   memorisation; GUI-Odyssey is not named in the UI-Venus-1.5 report's data list, which says "30+ sources ... and so
   on"). C0 had the same knowledge in its reasoning but clicked instead of typing. => "strict MD" is not memory-only;
   content effects should be read as A1 vs A0/A7 (45.4 vs 19.7/16.4 strict), not vs C0.
+
+## 2026-10-06 (Tue)
+- Clarified for the write-up: the controller receives the previous GT action, the backbone never did; C1 replaced the
+  backbone's native "Previous Actions" history (only 13% of memory entries mention an action verb).
+- Prior-knowledge analysis (`src/prior_knowledge.py` → results/n600_at_prior_table.csv): of 982 GT TYPE steps, 248 have
+  a string that appears in no input; A0 types 31.5% of them exactly (C0 13.7%). Dataset typos are not reproduced
+  (Italin→Italian, prosche→Porsche) → world knowledge + template conventions, no evidence of verbatim episode recall.
+  A1 < A0 on strings visible on the current screen (47.7 vs 64.0 exact, n=86).
+- Paired tests (`src/at_compare.py` → results/n600_at_paired.csv): A1 vs A0 strict MD 45.4 vs 19.7 (49/10, p=3e-7);
+  A7 vs A0 all-step AMS 64.1 vs 68.2 (362/752); A2 vs A1 strict 57.9 vs 45.4 (p=0.004); A8 vs C8 follow 25.4 vs 20.7.
+- Related-work snapshot (docs/related_work.md) and task-graph memory design (docs/graph_memory_design.md, not run).
+- Report §9 + TL;DR bullet, CONTEXT §4.0, README status updated. GPU-hours total 16.3 (follow-up 4.9).

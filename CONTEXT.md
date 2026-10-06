@@ -4,7 +4,7 @@ Everything needed to continue this project on another machine or with a new assi
 specification is in [`docs/task_spec.md`](docs/task_spec.md) (verbatim). The dated running log is
 [`LOG.md`](LOG.md). This file summarises **what was decided, why, what is verified, and what remains**.
 
-_Last updated: 2026-10-03 20:15 EDT (Adroit). **A fresh session should start at §4 "PICK UP HERE".**_
+_Last updated: 2026-10-06 (Adroit). **A fresh session should start at §4 "PICK UP HERE".**_
 
 ---
 
@@ -79,9 +79,28 @@ MementoGUI released no code/weights, so we re-implement a **MementoGUI-style wor
 | Label precision | Hand-checked 30 random MD labels from images: **27/30 = 0.90** (Wilson 95% CI 0.74–0.97). Errors: OCR missed white-on-colour text on current screen; stale browser history matched; loose fuzzy paraphrase. | `reports/label_check.md`, `reports/figs/md_label_check_*.png` |
 | OCR | System tesseract 4.1.1, eng, `--psm 11`, + inverted pass if mean luminance < 110; conf ≥ 30. Reading order via line clustering (a bucket-sort bug was found by unit test and fixed before the OCR job). Cache shipped as `artifacts/ocr_cache_600.tar.gz`. | `src/ocr.py` |
 
-## 4. Status — PICK UP HERE (updated 2026-10-03 23:59 EDT)
+## 4. Status — PICK UP HERE (updated 2026-10-06)
 
-### 4.1 Where things stand: **the main study is COMPLETE**
+### 4.0 Latest: follow-up 1 (action trace) COMPLETE; follow-up 2 (task-graph memory) DESIGNED, not run
+
+* **Action trace** (`src/action_trace.py`, report §9): conditions A0/A1/A2/A7/A8 = C0/C1/C2/C7/C8 + "Actions taken so
+  far: [step k] <GT action>" in the same prompt slot. Specs `results/specs_at/` were built *from* the frozen
+  `results/specs/` (main-study specs/cache untouched); outputs `results/raw_at/`; backbone job 3392521, analysis
+  3392522 → `results/n600_at_{summary_table,follow_table,per_step}`; paired tests `python -m src.at_compare` →
+  `results/n600_at_paired.csv`; prior-knowledge table `python -m src.prior_knowledge` → `results/n600_at_prior_table.csv`.
+  Headline: AMS C1 66.3 → A1 71.8, C2 71.0 → A2 76.6, A0 68.2; with actions, wrong-episode memory hurts (A7 64.1 < A0)
+  and clean memory adds 26 pts on strict MD (A1 45.4 vs A0 19.7); A8 follow 25.4%. Backbone types 31.5% of never-seen
+  strings exactly (priors) → read MD accuracies against A0.
+* **Key conceptual point:** the controller gets the previous GT action, the backbone does not; C1 *replaced* the
+  backbone's native "Previous Actions" history with notes. A0 is the fair no-memory baseline.
+* **Next (design in `docs/graph_memory_design.md`, related work in `docs/related_work.md`):** within-episode task graph
+  (Subgoal / Event / Value nodes) with structural interventions G8r (re-link values) and G8s (flip subgoal status).
+  Protocol: iterate on a dev set (episodes 600–899 of the stratified order; needs OCR + MD labels + graph controller),
+  freeze, pre-register HG1–HG4, run once on the 600 test episodes. Bar to beat: A2 76.6 AMS.
+* Running backbone/analysis on other spec sets: `sbatch --mail-user=<you> slurm/backbone.sbatch 600 <conds> --specs
+  <dir> --raw <dir>`; `sbatch ... slurm/analyze.sbatch 600 "" --raw results/raw,<dir> --out_tag <tag>`.
+
+### 4.1 Main study: **COMPLETE**
 
 All stages finished: controller (job 3390346), conditions (3390347), backbone (3390348; 4 shards: two on A40s
 ~3 h each, two on A100s ~1.6 h each), analysis (3390782, after replacing a too-slow bootstrap with an equivalent
@@ -215,6 +234,10 @@ src/analyze.py        official AMS, metrics, bootstrap, McNemar → summary_tabl
 src/figures.py        bar chart + follow-rate chart
 src/failure_cases.py  10 annotated example cases (reports/figs/case_*.png)
 src/provenance.py     results/provenance.json
+src/action_trace.py   follow-up 1: A0/A1/A2/A7/A8 specs from the frozen specs (results/specs_at/, gitignored; outputs results/raw_at/)
+src/at_compare.py     paired McNemar within the follow-up → results/n600_at_paired.csv
+src/prior_knowledge.py typed strings by source (instruction / screen / earlier / seen nowhere) → results/n600_at_prior_table.csv
+docs/related_work.md  structured/graph memory survey snapshot     docs/graph_memory_design.md  follow-up 2 design
 tests/                converter + counterfactual tests
 artifacts/            OCR cache (600 eps), zip central-directory index
 results/              md_steps_*.parquet, type_steps_*.parquet, nonmd_sample_*.parquet, provenance.json,

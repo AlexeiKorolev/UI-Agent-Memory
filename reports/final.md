@@ -22,6 +22,12 @@ tuned after seeing results except the one pre-full-run change documented in `rep
 * **Keeping all raw past screenshots (C2) beats our compressed memory** (AMS 71.0 vs 66.3; MD 48.4 vs 40.6) in this
   teacher-forced offline setting, the opposite of MementoGUI's reported ordering.
 
+* **Follow-up (§9, 2026-10-05): give the backbone the list of past actions.** C1 had *replaced* the prompt's action
+  history. Adding it back lifts every condition (C1 66.3 → 71.8; C2 71.0 → 76.6; actions alone 68.2), halves
+  click-instead-of-type errors, and makes the content effect cleaner: with actions, wrong-episode memory now *hurts*
+  (64.1 vs 68.2) while clean memory adds 26 points on strict MD (45.4 vs 19.7). The backbone also types 31.5% of
+  never-seen strings exactly from priors, so MD accuracy must be read against the actions-only baseline.
+
 ## 1. Setup
 
 | Component | Choice |
@@ -258,3 +264,97 @@ Per-step results: `results/n600_per_step.parquet` (75,072 rows: episode × step 
 action, official correctness, text similarities, presence flags).
 
 Optional §7 of the spec (activation patching) was not run.
+
+## 9. Follow-up 1 (2026-10-05): adding the action trace
+
+**Why.** In C1 the memory block *replaces* the prompt's "### Previous Actions" slot. The controller sees the previous
+GT action when it writes a note, but its notes describe screens (13% of entries mention an action verb), so the
+backbone never learns which actions were taken. The failure analysis pointed to exactly that: on GT-TEXT steps C1
+clicks instead of typing 39.5% of the time (often reasoning "click the search bar to start typing <the right string>"),
+and on GT-COMPLETE steps it clicks 183 times.
+
+**Conditions** (`src/action_trace.py`; built from the frozen main-study specs, so memory contents, C7 donors and C8
+edits are identical; one pre-specified run on the same 600 episodes, nothing tuned). The block
+`Actions taken so far: [step k] <GT action in UI-Venus syntax>` is added to the same slot:
+A0 actions only · A1 C1 + actions · A2 C2 screenshots each followed by its action · A7 C7 (other episode) + the
+recipient's own actions · A8 C8 + actions, with the needed string also replaced in earlier `Type(...)` actions
+(original survives in 1/275 histories, as in C8). 4.9 GPU-hours.
+
+### Table 9a. AMS on all steps (95% episode-bootstrap CI)
+
+| | without actions | with actions |
+|---|---|---|
+| no memory | C0 38.3 [37.1, 39.7] | **A0 68.2** [67.2, 69.4] |
+| clean memory | C1 66.3 [64.9, 67.6] | **A1 71.8** [70.5, 73.0] |
+| all past screenshots | C2 71.0 [69.8, 72.3] | **A2 76.6** [75.5, 77.7] |
+| other episode's memory | C7 51.6 [50.5, 52.9] | **A7 64.1** [63.0, 65.3] |
+
+### Table 9b. Typed-text accuracy on MD steps with the string in memory (paired exact McNemar, `results/n600_at_paired.csv`)
+
+| | MD-present (n=256) | strict MD-present (n=152) |
+|---|---|---|
+| C1 clean memory | 40.6 | 32.2 |
+| A0 actions only | 40.2 [34.2, 46.2] | 19.7 [13.2, 27.2] |
+| A1 memory + actions | **53.5** [47.8, 59.6] | **45.4** [37.7, 53.9] |
+| A2 screenshots + actions | **64.1** [58.5, 69.4] | **57.9** [50.0, 65.4] |
+| A7 other episode + actions | 36.7 [30.9, 42.5] | 16.4 [10.7, 22.6] |
+| A1 vs A0 | 56 vs 22 discordant, p = 1e-4 | 49 vs 10, p = 3e-7 |
+| A7 vs A0 | 9 vs 18, p = 0.12 | 4 vs 9, p = 0.27 |
+| A1 vs A7 | 61 vs 18, p = 1e-6 | 50 vs 6, p = 1e-9 |
+
+**Findings.**
+1. **Knowing what was done fixes much of the state error.** TEXT steps predicted as CLICK: C1 39.5% → A1 19.8%
+   (C2 27.7% → A2 11.8%). COMPLETE accuracy: C1 59.2 → A1 66.9, C2 69.3 → A2 88.5. Late steps no longer decay
+   (steps 20+: C1 57.5, A1 64.7, A2 71.5). Actions alone (A0, 68.2) already beat our memory notes alone (C1, 66.3).
+2. **With actions, the presence effect disappears and wrong memory hurts.** Without actions, another episode's memory
+   added 13 AMS points over none (C7 vs C0). With actions, it *costs* 4 points (A7 64.1 vs A0 68.2; 362 vs 752
+   discordant) and does not help MD steps (A7 vs A0, p = 0.12 / 0.27). Clean memory adds 3.5 AMS points over actions
+   alone and **26 points on strict MD** (A1 45.4 vs A0 19.7). H2 ("content, not presence") is cleaner once the
+   backbone knows what it has done.
+3. **Causal following persists and grows:** A8 types the counterfactual on 25.4% [20.5, 30.4] of MD-present steps
+   (C8 20.7%; 16 vs 4 discordant, p = 0.012) and 32.9% of strict MD-present steps (C8 23.7%, p = 5e-4).
+4. **Raw history still wins:** A2 > A1 on every metric (AMS 76.6 vs 71.8; strict MD 57.9 vs 45.4, p = 0.004).
+5. **Memory notes can crowd out the screen:** on TYPE steps whose string is visible on the current screen (n = 86),
+   A1 types it exactly 47.7% of the time vs A0 64.0% (`results/n600_at_prior_table.csv`).
+
+Leakage checks: copying the previous GT action happens at its base rate (8–9% vs GT repeat rate 7.9%) and the gains
+hold when repeats are excluded; the needed string is in the clean action trace on only 25/256 MD-present steps and the
+gains hold on the other 231 (A1 52.8 vs C1 39.8).
+
+### 9.1 The backbone types many strings from priors (`src/prior_knowledge.py`)
+
+Every GT TYPE step (n = 982 with ≥ 3 characters) was assigned the first source that contains its string:
+instruction (484), current screen (86), earlier screen/typed text only (= strict MD, 164), or **seen nowhere** (248:
+in no input up to that step). Exact (normalised) match rates:
+
+| source | C0 | C1 | C2 | A0 | A1 | A2 | A7 |
+|---|---|---|---|---|---|---|---|
+| in instruction | 33.5 | 54.5 | 66.5 | 72.1 | 70.9 | 80.6 | 66.5 |
+| on current screen | 18.6 | 25.6 | 54.7 | 64.0 | 47.7 | 67.4 | 55.8 |
+| earlier only (strict MD) | 0.6 | 25.0 | 32.3 | 18.9 | 37.8 | 49.4 | 14.6 |
+| **seen nowhere** | 13.7 | 24.6 | 34.3 | **31.5** | 36.7 | 39.1 | 29.8 |
+
+With actions only, UI-Venus types **31.5% of never-seen strings exactly**, e.g. "Russian Learning", "book about
+poetry", "10 mins per day", song lyrics named by the task ("We were both young when I first saw you"), and a full
+chocolate-chip-cookie ingredient list. These look like world knowledge plus GUI-Odyssey's task-template conventions
+rather than verbatim recall of episodes: dataset typos are *not* reproduced ("Italin Learning" → "Italian Learning",
+"prosche" → "Porsche"), and template values are sometimes slightly off ("MAY 19" for "MAY 18", which the 0.8 fuzzy
+threshold still counts as correct). GUI-Odyssey is not named in the UI-Venus-1.5 report's data list (which ends
+"30+ sources … and so on"), so training exposure can be neither confirmed nor excluded. Part of "seen nowhere" will
+also be OCR misses.
+
+**Consequences for the main study.** (i) "Strict MD" means "not visible in the inputs", not "only memory can supply
+it": A0 solves 19.7% of strict MD-present steps without any memory. C0 scored 0.7% there mainly because it rarely
+types (13%); it often names the string in its reasoning and then clicks. (ii) The clean test of memory *content* is
+A1 vs A0 vs A7 (all with actions), and it is strongly positive (§9 Table 9b). (iii) The C8/A8 follow results are
+unaffected, since the counterfactual strings are not what priors would produce (0/256 under C1/A1).
+
+### 9.2 Updated limitations
+* C1 replaced the backbone's native action history rather than adding to it; the MementoGUI-style comparison
+  (C0 vs C1) therefore mixes "memory" with "any history". A0 is the fair no-memory baseline.
+* The action trace is the GT trajectory (teacher-forced), the best case for an action list.
+* MD accuracies include prior-knowledge guesses; report them against A0.
+* Compute for the follow-up: 4.9 GPU-hours (3 shards A100, 1 shard A40); total project 16.3 GPU-hours.
+
+Next steps (design only, not run): within-episode task-graph memory with structural interventions
+(`docs/graph_memory_design.md`); related work snapshot in `docs/related_work.md`.
