@@ -17,5 +17,5 @@ set -eo pipefail
 source "$SLURM_SUBMIT_DIR/env.sh"   # submit from the repo root
 export HF_HUB_OFFLINE=1 TRANSFORMERS_OFFLINE=1 OMP_THREAD_LIMIT=1
 cd $PROJ; echo "$(date) $SLURMD_NODENAME"; nvidia-smi --query-gpu=name,memory.total --format=csv,noheader
-python -m src.controller --n ${1:-300} --shard $SLURM_ARRAY_TASK_ID --nshards 4
+python -m src.controller --n ${1:-300} --shard $SLURM_ARRAY_TASK_ID --nshards ${NSHARDS:-4}
 echo "$(date) done"

@@ -21,24 +21,25 @@ PARTS = [f"screenshots.z{i:02d}" for i in range(1, 9)] + ["screenshots.zip"]
 
 
 class SplitZip:
-    def __init__(self, session=None):
+    def __init__(self, session=None, base=BASE, parts=PARTS, sizes=None):
         self.s = session or requests.Session()
+        self.base, self.parts = base, parts
         # exact part sizes from the HF tree API at REV (avoids per-part resolver HEAD requests)
-        self.sizes = [10737418240] * 8 + [6740164517]
+        self.sizes = sizes or [10737418240] * 8 + [6740164517]
         self._cdn = {}  # part -> (resolved CDN url, time); avoids a hub request per range read
 
     def _url(self, disk, refresh=False):
         u, t = self._cdn.get(disk, (None, 0))
         if refresh or u is None or time.time() - t > 600:
-            r = self.s.head(BASE + PARTS[disk], allow_redirects=False, timeout=60)
-            u = r.headers.get("Location") if r.status_code in (301, 302, 303, 307, 308) else BASE + PARTS[disk]
+            r = self.s.head(self.base + self.parts[disk], allow_redirects=False, timeout=60)
+            u = r.headers.get("Location") if r.status_code in (301, 302, 303, 307, 308) else self.base + self.parts[disk]
             if u.startswith("/"):
                 u = "https://huggingface.co" + u
             self._cdn[disk] = (u, time.time())
         return u
 
     def _size(self, part):
-        r = self.s.head(BASE + part, allow_redirects=True, timeout=60)
+        r = self.s.head(self.base + part, allow_redirects=True, timeout=60)
         r.raise_for_status()
         return int(r.headers["Content-Length"])
 
@@ -70,7 +71,7 @@ class SplitZip:
         return out
 
     def central_directory(self):
-        last = len(PARTS) - 1
+        last = len(self.parts) - 1
         tail_len = min(self.sizes[last], 1 << 16)
         tail = self._get(last, self.sizes[last] - tail_len, tail_len)
         i = tail.rfind(b"PK\x05\x06")

@@ -11,9 +11,9 @@ import numpy as np
 from PIL import Image, ImageOps
 from rapidfuzz.distance import Levenshtein
 
-from src.data import PROJ, SHOTS
+from src.data import DATA, DATASET, PROJ, SHOTS
 
-OCR_DIR = PROJ / "data" / "ocr"
+OCR_DIR = DATA / "ocr" if DATASET == "memgui" else PROJ / "data" / "ocr"
 SIM_THRESH = 0.8
 
 

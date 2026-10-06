@@ -12,6 +12,11 @@ screenshot; they differ ONLY in the block placed in the "### Previous Actions" s
   C7  memory of another sampled episode, same category, matched #entries (then #crops), relabelled
   C8  MD steps: needed string replaced by a same-type alternative in text AND crops
   C8t text-only edit            C8c crop-only edit
+  Follow-up (long-horizon runs, 2026-10-06), raw past screenshots under C1's visual budget:
+  C2b the n most recent past screenshots, n = number of crops in C1 at this step, each downsampled so that their total
+      pixel count equals that of C1's crops (same number of images, same pixels; no history if C1 has no crop)
+  C2w the 4 most recent past screenshots at the C2 resolution (a sliding window with C1's cap of 4 images)
+Only scored steps get specs (all GUI-Odyssey steps; MemGUI-3K steps marked reasonable).
 Specs are JSON lists of parts: {"text": str} | {"image": path, "px": budget, "gray": bool}.
 """
 import argparse
@@ -25,14 +30,14 @@ import pandas as pd
 from PIL import Image
 
 from src.counterfactual import choose_alternative, edit_crop, edit_text
-from src.data import PROJ, load_episode, sample, shot_path
+from src.data import CACHE, PROJ, RESULTS, RUN, load_episode, sample, scored, shot_path
 from src.ocr import SIM_THRESH, best_window_sim, ocr_cached, ocr_image, reading_order, text_sim_in
 from src.vlm import PX_CROP, PX_CURRENT, PX_HISTORY
 
-CACHE = PROJ / "cache"
-SPECS = PROJ / "results" / "specs"
-CROP_OCR = PROJ / "data" / "ocr_crops"
+SPECS = RESULTS / "specs"
+CROP_OCR = (PROJ / "runs" / RUN if RUN else PROJ / "data") / "ocr_crops"
 C2_CAP = 20
+C2W_CAP = 4
 
 VENUS_PROMPT_PRE = """**You are a GUI Agent**.
 Your task is to analyze a given user task, review current screenshot and previous actions, and determine the next action to complete the task.
@@ -104,6 +109,18 @@ def mem_block(entries, eid, text=True, crops=True, gray=False, crop_override=Non
             parts.append({"image": cp, "px": PX_CROP, "gray": gray})
             parts.append({"text": "\n"})
     return parts
+
+
+def raw_history(eid, steps, px):
+    parts = [{"text": MEM_HEADER}]
+    for k in steps:
+        parts += [{"text": f"[step {k}]\n"}, {"image": str(shot_path(eid, k)), "px": px}, {"text": "\n"}]
+    return parts if steps else []
+
+
+def img_area(path):
+    w, h = Image.open(path).size
+    return w * h
 
 
 def crop_ocr(path):
@@ -186,6 +203,8 @@ def build(n, md_path, only=None):
         cat = ep["task_info"]["category"]
         spec = {}
         for t in range(len(ep["steps"])):
+            if not scored(ep["steps"][t]):
+                continue
             ents = load_mem(eid, t)
             c = {}
             c["C0"] = wrap(problem, [], eid, t)
@@ -196,6 +215,10 @@ def build(n, md_path, only=None):
                 for k in range(max(0, t - C2_CAP), t):
                     hist += [{"text": f"[step {k}]\n"}, {"image": str(shot_path(eid, k)), "px": PX_HISTORY}, {"text": "\n"}]
             c["C2"] = wrap(problem, hist, eid, t)
+            crops = [crop_path(eid, e["crop"]) for e in ents if e.get("crop")]
+            px_b = int(sum(img_area(p) for p in crops) / len(crops)) if crops else 0
+            c["C2b"] = wrap(problem, raw_history(eid, list(range(max(0, t - len(crops)), t)), px_b), eid, t)
+            c["C2w"] = wrap(problem, raw_history(eid, list(range(max(0, t - C2W_CAP), t)), PX_HISTORY), eid, t)
             c["C3"] = wrap(problem, mem_block(ents, eid, crops=False), eid, t)
             c["C4"] = wrap(problem, mem_block(ents, eid, text=False), eid, t)
             c["C5"] = wrap(problem, mem_block(ents, eid, gray=True), eid, t)
@@ -280,10 +303,10 @@ if __name__ == "__main__":
     ap.add_argument("--md", default=None)
     ap.add_argument("--tag", default="")
     a = ap.parse_args()
-    md_path = a.md or (PROJ / "results" / f"md_steps_n{a.n}.parquet")
+    md_path = a.md or (RESULTS / f"md_steps_n{a.n}.parquet")
     pres, cf = build(a.n, md_path)
-    pres.to_parquet(PROJ / "results" / f"presence{a.tag}.parquet")
-    cf.to_parquet(PROJ / "results" / f"counterfactuals{a.tag}.parquet")
+    pres.to_parquet(RESULTS / f"presence{a.tag}.parquet")
+    cf.to_parquet(RESULTS / f"counterfactuals{a.tag}.parquet")
     if len(pres):
         print("MD steps:", len(pres), "present_text:", pres.present_text.mean().round(3),
               "present_crop:", pres.present_crop.mean().round(3),

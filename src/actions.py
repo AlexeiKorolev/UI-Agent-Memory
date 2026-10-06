@@ -12,11 +12,16 @@ Both use [0,1000] normalized coordinates and finger-trajectory scroll semantics,
 
 Mappings with no exact counterpart (documented in the report):
   Drag -> SCROLL (direction of start->end), CallUser -> COMPLETE, or IMPOSSIBLE if its content says the
-  task is infeasible; PressEnter/Wait/Launch -> kept as PRESS_ENTER/WAIT/LAUNCH (never match GT).
+  task is infeasible; PressEnter/Wait/Launch -> kept as PRESS_ENTER/WAIT/LAUNCH (never match GUI-Odyssey GT).
+MemGUI-3K (MG_DATASET=memgui) adds GT PRESS_ENTER, WAIT and ANSWER (its answer action); there CallUser -> ANSWER.
 """
+import os
 import re
 
 import numpy as np
+
+# MemGUI-3K has an explicit answer action, so there CallUser(content) is scored as ANSWER (see src/memgui.py)
+DATASET = os.environ.get("MG_DATASET", "odyssey")
 
 _NUM = r"-?\d+(?:\.\d+)?"
 IMPOSSIBLE_PAT = re.compile(r"impossible|infeasible|cannot be (completed|done)|not possible|unable to complete", re.I)
@@ -120,7 +125,9 @@ def venus_to_odyssey(parsed):
     if n == "Finished":
         return "COMPLETE"
     if n == "CallUser":
-        return "IMPOSSIBLE" if IMPOSSIBLE_PAT.search(a.get("content", "")) else "COMPLETE"
+        if IMPOSSIBLE_PAT.search(a.get("content", "")):
+            return "IMPOSSIBLE"
+        return f"ANSWER: {a.get('content', '')}" if DATASET == "memgui" else "COMPLETE"
     if n == "PressEnter":
         return "PRESS_ENTER"
     if n == "Wait":
@@ -151,6 +158,12 @@ def gt_to_venus(action, info):
         return "Finished(content='')"
     if action == "INCOMPLETE":
         return "CallUser(content='The task is impossible to complete.')"
+    if action == "ENTER":
+        return "PressEnter()"
+    if action == "WAIT":
+        return "Wait()"
+    if action == "ANSWER":
+        return f"CallUser(content='{info}')"
     raise ValueError(action)
 
 
@@ -170,7 +183,8 @@ def odyssey_decode(s):
 
 
 def text_of(cmd):
-    """Typed text of an official command string (None if not TYPE). Uses split(':',1) so text with ':' survives."""
-    if cmd.startswith("TYPE:"):
+    """Typed (or, for MemGUI-3K, answered) text of an official command string (None otherwise). Uses split(':',1) so
+    text with ':' survives."""
+    if cmd.startswith("TYPE:") or cmd.startswith("ANSWER:"):
         return cmd.split(":", 1)[1].strip()
     return None

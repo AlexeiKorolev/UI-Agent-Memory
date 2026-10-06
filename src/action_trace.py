@@ -14,6 +14,10 @@ results/specs_at/ and backbone outputs to results/raw_at/, so the main study's f
 
 Past actions are the ground-truth actions (teacher-forced, like the memory itself), formatted by gt_to_venus in the
 backbone's own action syntax. "[step k] <action>" is the action taken on screen k, matching the memory labels.
+
+Long-horizon follow-up (2026-10-06; built only for runs/<MG_RUN>/, never for the main study):
+  A3  C3 (memory text, no crops) + actions      A5  C5 (crops -> gray) + actions   -> do crops matter given actions?
+  A2b C2b (past screenshots under C1's visual budget), each followed by its action; older actions as text
 """
 import argparse
 import json
@@ -23,12 +27,13 @@ import pandas as pd
 from src.actions import gt_to_venus
 from src.conditions import C2_CAP, MEM_HEADER, SPECS
 from src.counterfactual import edit_text
-from src.data import PROJ, load_episode, sample, shot_path
+from src.data import RESULTS, load_episode, sample, shot_path
 from src.vlm import PX_HISTORY
 
-SPECS_AT = PROJ / "results" / "specs_at"
+SPECS_AT = RESULTS / "specs_at"
 TRACE_HEADER = "Actions taken so far:\n"
 AT_CONDS = ["A0", "A1", "A2", "A7", "A8"]
+LONG_CONDS = ["A2b", "A3", "A5"]
 
 
 def block_of(spec_parts):
@@ -48,19 +53,25 @@ def trace_block(actions):
     return [{"text": TRACE_HEADER + "".join(f"[step {k}] {a}\n" for k, a in enumerate(actions))}]
 
 
-def raw_history_with_actions(eid, actions):
+def raw_history_with_actions(eid, actions, cap=C2_CAP, px=PX_HISTORY):
     t = len(actions)
     parts = [{"text": MEM_HEADER}]
     for k in range(t):
-        if k < t - C2_CAP:
+        if k < t - cap:
             parts.append({"text": f"[step {k}] Action: {actions[k]}\n"})
         else:
-            parts += [{"text": f"[step {k}]\n"}, {"image": str(shot_path(eid, k)), "px": PX_HISTORY},
+            parts += [{"text": f"[step {k}]\n"}, {"image": str(shot_path(eid, k)), "px": px},
                       {"text": f"\nAction: {actions[k]}\n"}]
     return parts
 
 
-def build(n, cf_path):
+def c2b_budget(spec_parts):
+    """(number of past screenshots, per-image pixel budget) of a C2b spec."""
+    imgs = [p for p in block_of(spec_parts) if "image" in p]
+    return len(imgs), (imgs[0]["px"] if imgs else 0)
+
+
+def build(n, cf_path, long=False):
     SPECS_AT.mkdir(parents=True, exist_ok=True)
     cf = pd.read_parquet(cf_path)
     alt_of = {(r.episode_id, int(r.step)): (r.needed_string, r.alternative) for r in cf.itertuples() if pd.notna(r.alternative)}
@@ -74,12 +85,17 @@ def build(n, cf_path):
             acts = past_actions(ep, t)
             c = {}
             if t == 0:  # no history: identical to C0 (deduplicated by the backbone); MD steps never occur at t=0
-                c = {k: cs["C0"] for k in ["A0", "A1", "A2", "A7"]}
+                c = {k: cs["C0"] for k in ["A0", "A1", "A2", "A7"] + (LONG_CONDS if long else [])}
             else:
                 tr = trace_block(acts)
                 c["A0"] = with_block(cs["C0"], tr)
                 c["A1"] = with_block(cs["C1"], block_of(cs["C1"]) + tr)
                 c["A2"] = with_block(cs["C2"], raw_history_with_actions(eid, acts))
+                if long:
+                    c["A3"] = with_block(cs["C3"], block_of(cs["C3"]) + tr)
+                    c["A5"] = with_block(cs["C5"], block_of(cs["C5"]) + tr)
+                    nb, px = c2b_budget(cs["C2b"])
+                    c["A2b"] = with_block(cs["C2b"], raw_history_with_actions(eid, acts, cap=nb, px=px) if nb else tr)
                 if cs.get("C7") is None:
                     c["A7"] = None
                     stats["A7_none"] += 1
@@ -90,7 +106,7 @@ def build(n, cf_path):
                     needed, alt = alt_of[(eid, t)]
                     edited = []
                     for a in acts:
-                        a2, k = edit_text(a, needed, alt) if a.startswith("Type(") else (a, 0)
+                        a2, k = edit_text(a, needed, alt) if a.startswith(("Type(", "CallUser(")) else (a, 0)
                         edited.append(a2)
                         stats["A8_trace_edits"] += k
                     c["A8"] = with_block(cs["C8"], block_of(cs["C8"]) + trace_block(edited))
@@ -104,6 +120,7 @@ def build(n, cf_path):
 if __name__ == "__main__":
     ap = argparse.ArgumentParser()
     ap.add_argument("--n", type=int, default=600)
-    ap.add_argument("--cf", default=str(PROJ / "results" / "counterfactuals.parquet"))
+    ap.add_argument("--cf", default=str(RESULTS / "counterfactuals.parquet"))
+    ap.add_argument("--long", action="store_true", help="also build A2b/A3/A5 (long-horizon runs)")
     a = ap.parse_args()
-    print(build(a.n, a.cf))
+    print(build(a.n, a.cf, a.long))

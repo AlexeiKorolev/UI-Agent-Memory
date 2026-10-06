@@ -116,3 +116,22 @@
   A7 vs A0 all-step AMS 64.1 vs 68.2 (362/752); A2 vs A1 strict 57.9 vs 45.4 (p=0.004); A8 vs C8 follow 25.4 vs 20.7.
 - Related-work snapshot (docs/related_work.md) and task-graph memory design (docs/graph_memory_design.md, not run).
 - Report §9 + TL;DR bullet, CONTEXT §4.0, README status updated. GPU-hours total 16.3 (follow-up 4.9).
+- Follow-up 2, long-horizon (design fixed before any result; no tuning). Question: does a MementoGUI-style memory pay
+  off once episodes are long, and against raw screenshots under the *same* visual budget?
+  * Runs (outputs under runs/<name>/, selected by MG_DATASET/MG_RUN; main-study files untouched):
+    `odylong` = all 155 GUI-Odyssey random_split test episodes with >= 25 steps (4,668 steps; 131 Multi_Apps); 55
+    overlap the n=600 sample and reuse its controller caches (copied, without the C8 edits in cf/).
+    `memgui` = MemGUI-3K test split (lgy0404/MemGUI-3K @ 003822b5, Apache-2.0; teacher rollouts of MemGUI-Agent,
+    released after UI-Venus-1.5): 295 episodes, 7,958 steps after dropping 334 memory_* context actions and 4 steps
+    without a tool call (median 22, p90 50, max 115); 6,146 steps marked reasonable are scored, the rest stay in the
+    history. GT = the step's <tool_call> (0-1000 coords); `src/memgui.py` converts to the GUI-Odyssey schema; new GT
+    types PRESS_ENTER/WAIT/ANSWER are scored by the official matcher's generic type-match rule; clicks by L2 <= 0.14
+    (no SAM2 boxes); CallUser -> ANSWER for MemGUI. MD labels also cover ANSWER steps; the teacher's <ui_observation>
+    is used like GUI-Odyssey's `description` (current-screen check only, never shown to a model).
+  * New conditions: C2b = the n most recent past screenshots, n = #crops in C1 at that step, each downsampled so the
+    total pixels equal C1's crops; C2w = last 4 screenshots at 0.35 MP; A3/A5 = C3/C5 + action trace; A2b = C2b +
+    action trace. Backbone runs C0,C1,C2,C2b,C2w,C3,C4,C5,C7,C8,C8t,C8c and A0,A1,A2,A2b,A3,A5,A7,A8 (C6 dropped).
+  * Predictions: L1 at matched pixels memory beats screenshots on MD steps (C1 > C2b, A1 > A2b); L2 the crop effect
+    shrinks once actions are given (A1-A3 < C1-C3); L3 content effect replicates (A1 > A7, C8 follow > 0);
+    L4 (exploratory) C2-C1 gap smaller on long episodes than in n=600.
+  * Pilots: 10 episodes per run in runs/<name>_pilot (job 3394140 = odylong_pilot).

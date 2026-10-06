@@ -15,15 +15,16 @@ from rapidfuzz.distance import Levenshtein
 from statsmodels.stats.contingency_tables import mcnemar
 
 from src.actions import odyssey_decode, text_of
-from src.data import PROJ, decode_action, load_episode, sample
+from src.data import PROJ, RESULTS, decode_action, load_episode, sample, scored
 from src.ocr import norm
 
 sys.path.insert(0, str(PROJ / "third_party" / "GUI-Odyssey" / "src" / "eval_mm"))
 from GUIOdyssey_action_matching import action_matching  # noqa: E402  (official, unmodified)
 
-RAW = PROJ / "results" / "raw"
-RES = PROJ / "results"
-CONDS = ["C0", "C1", "C2", "C3", "C4", "C5", "C6", "C7", "C8", "C8t", "C8c", "A0", "A1", "A2", "A7", "A8"]
+RAW = RESULTS / "raw"
+RES = RESULTS
+CONDS = ["C0", "C1", "C2", "C2b", "C2w", "C3", "C4", "C5", "C6", "C7", "C8", "C8t", "C8c",
+         "A0", "A1", "A2", "A2b", "A3", "A5", "A7", "A8"]
 TEXT_T = 0.8
 N_BOOT = 1000
 
@@ -82,6 +83,8 @@ def load_results(n, raw_dirs=(RAW,)):
     for e in df.episode_id.unique():
         ep = load_episode(e)
         for s in ep["steps"]:
+            if not scored(s):
+                continue
             gt.append(dict(episode_id=e, step=s["step"], gt_cmd=decode_action(s["action"], s["info"]),
                            gt_action=s["action"], sam2_bbox=s.get("sam2_bbox") or None,
                            category=ep["task_info"]["category"]))
@@ -187,7 +190,7 @@ def summarize(df, md, pres, cf, out_prefix):
                 r["text_acc"] = text_acc(d); r["text_acc_lo"], r["text_acc_hi"] = boot_ci(d, text_acc)
                 r["follow_cf"] = 100 * (d.text_sim_alt >= TEXT_T).mean()
                 r["follow_cf_lo"], r["follow_cf_hi"] = boot_ci(d, follow_cf)
-                r["pred_TYPE_rate"] = 100 * (d.pred_type == "TYPE").mean()
+                r["pred_TYPE_rate"] = 100 * d.pred_type.isin(["TYPE", "ANSWER"]).mean()  # ANSWER: MemGUI-3K only
             ch = d.changed_vs_C1.dropna()
             if len(ch):
                 r["change_vs_C1"] = 100 * ch.astype(float).mean()

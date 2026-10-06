@@ -20,3 +20,10 @@ results/specs/
 results/pilot/specs/
 results/specs_at/
 results/raw_at/
+# follow-up runs: keep episode lists, labels and tables; never caches/specs/raw outputs (absolute paths, large)
+runs/*/cache/
+runs/*/ocr_crops/
+runs/*/results/specs*/
+runs/*/results/raw*/
+runs/*/results/*_per_step.parquet
+runs/*/shots.txt

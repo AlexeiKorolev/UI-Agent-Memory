@@ -1,4 +1,11 @@
-"""GUIOdyssey v2 loading, official GT decoding, stratified episode sampling."""
+"""GUIOdyssey v2 loading, official GT decoding, stratified episode sampling.
+
+Follow-up runs (long GUI-Odyssey episodes, MemGUI-3K) are selected with two environment variables:
+  MG_DATASET  odyssey (default) | memgui   -- which converted dataset load_episode()/shot_path() read
+  MG_RUN      run name (default: unset = main study). If set, every output (controller cache, specs, raw backbone
+              outputs, tables) goes under runs/<MG_RUN>/ and sample(n) returns the first n episodes of
+              runs/<MG_RUN>/episodes.txt, so the main study's files are never touched.
+"""
 import json
 import math
 import os
@@ -10,17 +17,32 @@ import numpy as np
 
 # project root: $MG_PROJ if set, else the repo root (parent of src/)
 PROJ = Path(os.environ.get("MG_PROJ", Path(__file__).resolve().parents[1]))
-DATA = PROJ / "data" / "guiodyssey_v2"
+DATASET = os.environ.get("MG_DATASET", "odyssey")
+RUN = os.environ.get("MG_RUN", "")
+if DATASET == "memgui":
+    DATA = PROJ / "data" / "memgui3k"   # converted by src.memgui into the GUI-Odyssey annotation schema
+    CATEGORIES = ["MemGUI"]
+else:
+    DATA = PROJ / "data" / "guiodyssey_v2"
+    CATEGORIES = ["General_Tool", "Information_Management", "Media_Entertainment",
+                  "Multi_Apps", "Social_Sharing", "Web_Shopping"]
 ANNO = DATA / "annotations"
 SHOTS = DATA / "screenshots"
 SPLIT = "random_split"
-CATEGORIES = ["General_Tool", "Information_Management", "Media_Entertainment",
-              "Multi_Apps", "Social_Sharing", "Web_Shopping"]
+OUT = PROJ / "runs" / RUN if RUN else PROJ   # root for cache/ and results/
+CACHE = OUT / "cache"
+RESULTS = OUT / "results"
 
 
 @lru_cache(maxsize=None)
 def load_episode(eid):
     return json.load(open(ANNO / f"{eid}.json"))
+
+
+def scored(step):
+    """Steps evaluated by the backbone. All GUI-Odyssey steps; MemGUI-3K steps the dataset's evaluator marked
+    reasonable (unreasonable steps stay in the trajectory, so they appear in history and memory)."""
+    return step.get("score", True)
 
 
 def test_ids():
@@ -57,6 +79,14 @@ def decode_action(action, info):
         gt = action
     elif action == 'INCOMPLETE':
         gt = 'IMPOSSIBLE'
+    # MemGUI-3K actions with no GUI-Odyssey counterpart (not in the official converter): scored by the official
+    # matcher's generic rule (action type must match)
+    elif action == 'ENTER':
+        gt = 'PRESS_ENTER'
+    elif action == 'WAIT':
+        gt = 'WAIT'
+    elif action == 'ANSWER':
+        gt = f'ANSWER: {info}'
     else:
         raise ValueError(f'Unknown action {action}')
     return gt
@@ -82,6 +112,8 @@ def stratified_order(seed=0):
 
 
 def sample(n, seed=0):
+    if RUN:
+        return [l.strip() for l in open(OUT / "episodes.txt") if l.strip()][:n]
     return stratified_order(seed)[:n]
 
 

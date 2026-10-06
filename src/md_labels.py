@@ -1,22 +1,25 @@
 """Memory-dependent (MD) step labels.
 
-A step is MD if its GT action is TYPE (GUI-Odyssey v2 'TEXT') and the typed text
+A step is MD if its GT action is TYPE (GUI-Odyssey v2 'TEXT'; for MemGUI-3K also its ANSWER action, whose text is
+the reply to the user) and the typed text
   (a) does NOT appear on the current screen (OCR, or the dataset's per-step screen `description`), and
   (b) DOES appear on an earlier screen of the same episode (OCR) or in an earlier step's typed text.
 Matching: normalized Levenshtein similarity >= 0.8 between the (normalized) needed string and the best
 window of consecutive OCR words (src.ocr.best_window_sim).
 Extra flag (deviation, see report): `in_instruction` -- needed string fuzzy-contained in the task
 instruction/task text. Primary MD set = MD and not in_instruction ("md_strict"); both are saved.
+Only scored steps are labelled (MemGUI-3K: steps its evaluator marked reasonable).
 """
 import argparse
 import random
 
 import pandas as pd
 
-from src.data import PROJ, load_episode, sample
+from src.data import RESULTS, load_episode, sample, scored
 from src.ocr import SIM_THRESH, best_window_sim, norm, ocr_cached, text_sim_in
 
 MIN_LEN = 3
+TEXT_ACTIONS = ("TEXT", "ANSWER")
 
 
 def label_episode(eid):
@@ -26,7 +29,7 @@ def label_episode(eid):
     rows = []
     ocr = {}
     for s in steps:
-        if s["action"] != "TEXT":
+        if s["action"] not in TEXT_ACTIONS or not scored(s):
             continue
         t = s["step"]
         needed = str(s["info"]).strip()
@@ -44,7 +47,7 @@ def label_episode(eid):
             sim, _ = best_window_sim(needed, ocr[k]["words"])
             if sim >= SIM_THRESH:
                 srcs.append((k, "screen", sim))
-            if steps[k]["action"] == "TEXT":
+            if steps[k]["action"] in TEXT_ACTIONS:
                 tsim = text_sim_in(needed, str(steps[k]["info"]))
                 if tsim >= SIM_THRESH:
                     srcs.append((k, "typed", tsim))
@@ -70,7 +73,7 @@ if __name__ == "__main__":
     for e in sample(a.n):
         rows += label_episode(e)
     df = pd.DataFrame(rows)
-    out = PROJ / "results"
+    out = RESULTS
     out.mkdir(exist_ok=True)
     df.to_parquet(out / f"type_steps_n{a.n}.parquet")
     md = df[df.md == True].copy()

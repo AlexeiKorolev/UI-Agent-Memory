@@ -19,10 +19,9 @@ from pathlib import Path
 from PIL import Image
 
 from src.actions import gt_to_venus
-from src.data import PROJ, load_episode, sample, shot_path
+from src.data import CACHE, RESULTS, load_episode, sample, shot_path
 from src.vlm import PX_CONTROLLER, PX_CROP, greedy, make_llm, resize_to_budget, to_messages
 
-CACHE = PROJ / "cache"
 K_MAX = 8
 MAX_CROPS = 4
 MAX_RETRIES = 2
@@ -247,7 +246,7 @@ if __name__ == "__main__":
     llm = make_llm("controller", max_model_len=8192, max_images=1)
     stats = run(eids, llm)
     stats["seconds"] = time.time() - t0
-    out = PROJ / "results" / "controller_stats"
+    out = RESULTS / "controller_stats"
     out.mkdir(parents=True, exist_ok=True)
     json.dump(stats, open(out / f"n{a.n}_shard{a.shard}of{a.nshards}_{int(time.time())}.json", "w"), indent=1)
     print("DONE", stats)

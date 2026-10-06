@@ -13,11 +13,11 @@ from pathlib import Path
 from PIL import Image
 
 from src.actions import parse_venus, venus_to_odyssey
-from src.data import PROJ, sample
+from src.data import RESULTS, sample
 from src.vlm import greedy, make_llm, resize_to_budget, to_messages
 
-SPECS = PROJ / "results" / "specs"
-RAW = PROJ / "results" / "raw"
+SPECS = RESULTS / "specs"
+RAW = RESULTS / "raw"
 _img_cache = {}
 
 
