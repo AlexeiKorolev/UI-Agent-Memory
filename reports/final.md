@@ -358,3 +358,117 @@ unaffected, since the counterfactual strings are not what priors would produce (
 
 Next steps (design only, not run): within-episode task-graph memory with structural interventions
 (`docs/graph_memory_design.md`); related work snapshot in `docs/related_work.md`.
+
+## 10. Follow-up 2 (2026-10-06): long tasks and screenshots under the memory's budget
+
+**Why.** C2 (raw past screenshots) beat our memory, but the comparison favoured C2 in two ways: it gets ~7× the
+pixels of past images per step (2.62 vs 0.39 MP, 40 sampled episodes) and GUI-Odyssey episodes (median 14 steps) rarely
+outgrow its 20-screenshot window, so the regime a memory is built for never occurs. Two tests, designed and
+pre-registered in `LOG.md` before any result: (1) screenshot baselines held to the memory's visual budget, (2) longer
+tasks. Everything else (prompt, backbone, controller, metrics, statistics) is unchanged.
+
+### 10.1 Data
+
+* **`odylong`**: all 155 GUI-Odyssey `random_split` test episodes with ≥ 25 steps (4,668 steps; 131 Multi_Apps). 55 of
+  them were in the n=600 sample and reuse its controller caches. 148 MD steps (67 strict); needed string present in
+  memory on 94.6%.
+* **`memgui`**: the MemGUI-3K test split (`lgy0404/MemGUI-3K` @ `003822b5`, Apache-2.0; arXiv 2606.19926), 295
+  episodes on 26 English Android apps, built to need memory across steps and apps. Trajectories are *teacher rollouts*
+  of the MemGUI-Agent model (not human), released after UI-Venus-1.5. `src/memgui.py` converts them: ground truth =
+  the step's `<tool_call>` (0–1000 coordinates, verified visually); the agent's 334 `memory_*` context actions and 4
+  steps without a tool call are dropped (7,958 steps; median 22, p90 50, max 115); steps the dataset's evaluator marked
+  unreasonable stay in the history but are not scored (6,146 scored). New GT types PRESS_ENTER / WAIT / ANSWER are
+  scored by the official matcher's type-match rule, clicks by distance (≤ 0.14; no element boxes), and UI-Venus
+  `CallUser` counts as ANSWER. MD labels also cover ANSWER steps. 238 MD steps (144 strict); string present in memory
+  on only 67.6%. Pilot fix: the teacher's `<ui_observation>` describes the screen *after* the action, so it is not used
+  for the "visible on the current screen" check (OCR only).
+
+### 10.2 Conditions (glossary of everything in this report)
+
+Every condition uses the same UI-Venus prompt and current screenshot; only the "### Previous Actions" slot differs.
+
+| ID | What the backbone gets about the past | Question it answers |
+|---|---|---|
+| C0 | nothing | no-history baseline |
+| C1 | our memory: ≤ 8 notes `[step k] summary` + ≤ 4 crops | MementoGUI-style memory |
+| C2 | the 20 most recent past screenshots (0.35 MP each) | keep-everything baseline |
+| **C2b** | the *n* most recent past screenshots, *n* = number of crops C1 has at that step, shrunk so their total pixels equal C1's crops (no notes) | same images, same pixels as memory: is selecting + summarising better than just keeping recent screens? |
+| **C2w** | the 4 most recent past screenshots at 0.35 MP | the usual sliding window, with C1's image cap |
+| C3 | C1 notes, no crops | do crops matter? |
+| C4 | C1 crops, notes replaced by `[step k]` | do notes matter? |
+| C5 | C1 with crops painted gray | crop pixels vs image presence |
+| C6 | C1 with crops shuffled between notes | note–crop alignment (not run in follow-up 2) |
+| C7 | memory of another episode, same form | content vs presence |
+| C8 / C8t / C8c | MD steps: needed string swapped for an alternative in notes+crops / notes / crops | does the agent follow edited memory? |
+| A0 | the list of past actions `[step k] Click(...)` | no-memory baseline with action history |
+| A1 | C1 + action list | memory with action history |
+| A2 | C2 screenshots, each followed by its action (older actions as text) | keep-everything with actions |
+| **A2b** | C2b screenshots, each followed by its action, plus all older actions as text | equal-budget screenshots with actions |
+| **A3** / **A5** | C3 / C5 + action list | do crops still matter once actions are given? |
+| A7 / A8 | C7 / C8 + action list | content effect / following with actions |
+
+Pre-registered predictions: **L1** at matched pixels memory beats screenshots on MD steps (C1 > C2b, A1 > A2b);
+**L2** the crop effect shrinks once actions are given; **L3** the content effect replicates (A1 > A7, C8 follow > 0);
+**L4** (exploratory) the C2 − C1 gap is smaller on long episodes.
+
+### 10.3 Results: long GUI-Odyssey episodes (`runs/odylong/results/n155_*`, `runs/long_compare_*.csv`)
+
+Sanity: INVALID ≤ 0.02%, no truncated outputs, step-0 prompts identical to C0 in every condition, C8/A8 rows only on MD
+steps, C0 `Launch` 16% (as in the main study).
+
+**Table 10a. AMS on all 4,668 steps and text accuracy on MD steps with the string in memory (95% episode-bootstrap CI)**
+
+| | AMS all steps | MD-present (n=140) | strict MD-present (n=63) |
+|---|---|---|---|
+| C0 nothing | 34.4 [32.7, 36.5] | 13.6 [8.5, 19.6] | 0.0 |
+| C1 memory | 62.0 [59.8, 64.0] | 35.7 [28.0, 43.6] | 20.6 [11.8, 30.0] |
+| C2 last 20 screenshots | **68.7** [66.6, 70.6] | 48.6 [40.9, 56.6] | 34.9 [23.4, 45.8] |
+| C2b screenshots, C1's budget | 61.1 [58.9, 63.2] | 47.9 [40.4, 55.9] | 20.6 [11.7, 31.0] |
+| C2w last 4 screenshots | 63.7 [61.5, 65.7] | 48.6 [40.9, 56.6] | 30.2 [19.7, 42.1] |
+| C3 notes only | 59.2 [57.2, 61.2] | 28.6 [21.3, 36.0] | 17.5 [9.5, 26.2] |
+| C5 gray crops | 59.7 [57.7, 61.8] | 31.4 [24.5, 38.9] | 15.9 [7.9, 25.9] |
+| C7 other episode | 48.8 [47.1, 50.6] | 16.4 [11.0, 22.6] | 0.0 |
+| A0 actions only | 67.5 [65.7, 69.1] | 52.1 [44.9, 60.0] | 25.4 [15.3, 34.8] |
+| A1 memory + actions | 68.3 [66.3, 70.0] | 46.4 [39.2, 53.8] | 34.9 [24.6, 45.0] |
+| A2 screenshots + actions | **73.5** [71.9, 75.3] | **68.6** [61.2, 75.6] | **60.3** [48.4, 71.4] |
+| A2b budget screenshots + actions | 73.1 [71.5, 74.8] | 67.1 [59.1, 74.3] | 49.2 [36.7, 60.9] |
+| A3 notes only + actions | 66.9 [65.1, 68.7] | 47.1 [40.0, 54.6] | 34.9 [24.6, 45.9] |
+| A5 gray crops + actions | 67.8 [66.0, 69.5] | 47.9 [40.3, 55.5] | 34.9 [24.2, 46.2] |
+| A7 other episode + actions | 63.2 [61.4, 64.9] | 42.9 [35.0, 50.3] | 20.6 [12.1, 29.4] |
+
+Follow rates (MD-present, n=140): C8 17.1% [11.2, 24.1], C8t 12.9%, **C8c 0.0%**, A8 20.7% [14.5, 27.8]; C1/A1 0%.
+
+**Verdicts** (paired exact McNemar; differences with episode-bootstrap CIs):
+
+* **L1 not supported — at equal pixels, recent screenshots match or beat our memory.** MD-present: C2b 47.9 vs C1 35.7
+  (28 vs 11 discordant, p = 0.009); A2b 67.1 vs A1 46.4 (36 vs 7, p < 0.001). Strict: C2b = C1 (20.6, 9 vs 9); A2b 49.2
+  vs A1 34.9 (16 vs 7, p = 0.09). All steps: C2b ≈ C1 (61.1 vs 62.0, p = 0.18), C2w > C1 (63.7, p = 0.009), A2b > A1
+  (73.1 vs 68.3, 461 vs 234, p < 0.001).
+  *Checked:* the screenshots do not win by showing the string. C2b is right on 50.0% of MD-present steps whose source
+  screen is *outside* its window (n=86) and 44.4% when it is inside (n=54). What they do instead: (i) they raise the
+  rate of typing at all (C1 57.9% → C2b 66.4%; A1 77.9% → A2b 88.6%), the click-instead-of-type failure of §5.2/§9;
+  (ii) memory notes **distract** when the backbone does type: on MD steps whose string is in the instruction (n=77),
+  accuracy given TYPE is 74.0% (C1) and 68.3% (A1) vs 91.5% (C2b) and 91.9% (A0). Note texts supply competing strings.
+* **L2 supported, weakly.** Without actions, crops help (C1 vs C3 on MD-present 35.7 vs 28.6, 15 vs 5, p = 0.04); with
+  actions they do not (A1 vs A3 46.4 vs 47.1, 7 vs 8; A1 vs A5 46.4 vs 47.9). Difference-in-differences 7.9 points
+  [0.0, 15.8]; on all steps 1.4 [0.5, 2.5]. Consistent with the crop effect being mostly "you are about to type".
+* **L3 partly supported.** Content matters only on strict steps: A1 34.9 vs A7 20.6 (13 vs 4, p = 0.049), C1 20.6 vs
+  C7 0.0 (13 vs 0). On MD-present, actions-only A0 (52.1) is *above* A1 (46.4; 24 vs 16, p = 0.27). Edited memory is
+  still followed (C8 17.1%, A8 20.7%), only through the notes: crop-only edits are never followed (0/140).
+* **L4 opposite.** The keep-everything advantage grows on long episodes: C2 − C1 = 6.7 points vs 4.8 on the n=600
+  sample (difference 1.9 [0.5, 3.4]). By step index (C1 / C2 / A1 / A2): steps 0–9 65.9 / 69.9 / 72.1 / 74.4, steps 20–29
+  60.7 / 69.8 / 67.2 / 73.7, steps 30–39 49.6 / 59.5 / 56.3 / 64.4 (`runs/long_compare_steps.csv`).
+
+### 10.4 Results: MemGUI-3K
+
+_Backbone running (jobs 3394296 → analysis 3394297); filled in when it completes._
+
+### 10.5 Limitations of follow-up 2
+
+* Our controller is prompted (one Qwen3-VL-8B doing MementoGUI's step-processor and compressor roles); MementoGUI trains
+  four LoRA modules and adds episodic memory. The verdicts are about *this* memory, not MementoGUI's.
+* Teacher-forced: memory, screenshots and actions come from the reference trajectory. With predicted history the
+  ordering can change (MementoGUI's keep-all baseline was below memory with predicted history).
+* odylong has only 63 strict MD-present steps; strict-step differences under ~15 points are not resolvable.
+* MemGUI-3K ground truth is a model's rollout (filtered by an evaluator), clicks are scored by distance only, and
+  ANSWER steps by action type only; its single category makes C7 donors any other episode.
